@@ -1,0 +1,21 @@
+[package]
+name = "reytan"
+version = "0.1.0"
+edition = "2021"
+description = "Extractor of metadata from various services, in a unified format"
+authors = [
+    "Lauren Liberda <laura@selfisekai.rocks>",
+]
+keywords = ["scraper", "youtube"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.53"
+async-trait = "0.1.52"
+lazy_static = "1.4.0"
+reqwest = { version = "0.11.9", features = ["gzip", "brotli", "deflate", "cookies", "json"] }
+serde = { version = "1.0.136", features = ["derive"] }
+serde-aux = "3.0.1"
+smart-default = "0.6.0"
+tokio = { version = "1.16.1", features = ["full"] }
