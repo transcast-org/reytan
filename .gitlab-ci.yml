@@ -1,5 +1,5 @@
 test:
-  image: rust:alpine
+  image: rustlang/rust:nightly-alpine
   before_script:
     - apk add openssl-dev build-base
   script:
