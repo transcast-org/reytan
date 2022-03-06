@@ -1,6 +1,6 @@
 test:
-  image: rustlang/rust:nightly-alpine
+  image: alpine:edge
   before_script:
-    - apk add openssl-dev build-base
+    - apk add cargo openssl-dev build-base
   script:
     - cargo test
