@@ -2,7 +2,7 @@
 name = "reytan"
 version = "0.1.0"
 edition = "2021"
-description = "Extractor of metadata from various services, in a unified format"
+description = "Extractor of metadata from various streaming services, in a unified format"
 authors = [
     "Lauren Liberda <laura@selfisekai.rocks>",
 ]
@@ -19,3 +19,4 @@ serde = { version = "1.0.136", features = ["derive"] }
 serde-aux = "3.0.1"
 smart-default = "0.6.0"
 tokio = { version = "1.16.1", features = ["full"] }
+url = "2.2.2"

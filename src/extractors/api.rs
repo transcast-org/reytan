@@ -1,6 +1,15 @@
 use async_trait::async_trait;
 use serde::Serialize;
 use anyhow::Result;
+use url::Url;
+
+pub trait URLMatcher {
+    fn match_extractor(self, url: &Url) -> Option<URLMatch>;
+}
+
+pub struct URLMatch {
+    pub id: String,
+}
 
 #[async_trait]
 pub trait RecordingExtractor {
