@@ -1,0 +1,4 @@
+test:
+  image: rust:alpine
+  script:
+    - cargo test
