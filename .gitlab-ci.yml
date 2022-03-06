@@ -1,6 +1,6 @@
 test:
   image: rust:alpine
   before_script:
-    - apk add openssl-dev
+    - apk add openssl-dev build-base
   script:
     - cargo test
