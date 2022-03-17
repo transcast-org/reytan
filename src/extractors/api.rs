@@ -3,8 +3,9 @@ use async_trait::async_trait;
 use serde::Serialize;
 use url::Url;
 
+#[async_trait]
 pub trait URLMatcher {
-    fn match_extractor(self, url: &Url) -> Option<URLMatch>;
+    async fn match_extractor(self, url: &Url) -> Option<URLMatch>;
 }
 
 pub struct URLMatch {

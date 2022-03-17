@@ -36,8 +36,9 @@ impl YoutubeRE {
     }
 }
 
+#[async_trait]
 impl URLMatcher for YoutubeRE {
-    fn match_extractor(self, url: &Url) -> Option<URLMatch> {
+    async fn match_extractor(self, url: &Url) -> Option<URLMatch> {
         let scheme = url.scheme();
         if scheme != "http" && scheme != "https" {
             return None;
@@ -191,38 +192,42 @@ mod tests {
         assert_eq!(audio.channels.unwrap(), 2);
     }
 
-    #[test]
-    fn test_url_match_watch() {
+    #[tokio::test]
+    async fn test_url_match_watch() {
         let youtube = YoutubeRE {};
         let url_match = youtube
             .match_extractor(&Url::parse("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap())
+            .await
             .unwrap();
         assert_eq!(url_match.id, "dQw4w9WgXcQ");
     }
 
-    #[test]
-    fn test_url_match_video() {
+    #[tokio::test]
+    async fn test_url_match_video() {
         let youtube = YoutubeRE {};
         let url_match = youtube
             .match_extractor(&Url::parse("https://www.youtube.com/video/dQw4w9WgXcQ").unwrap())
+            .await
             .unwrap();
         assert_eq!(url_match.id, "dQw4w9WgXcQ");
     }
 
-    #[test]
-    fn test_url_match_shorts() {
+    #[tokio::test]
+    async fn test_url_match_shorts() {
         let youtube = YoutubeRE {};
         let url_match = youtube
             .match_extractor(&Url::parse("https://www.youtube.com/shorts/dQw4w9WgXcQ").unwrap())
+            .await
             .unwrap();
         assert_eq!(url_match.id, "dQw4w9WgXcQ");
     }
 
-    #[test]
-    fn test_url_match_shortener() {
+    #[tokio::test]
+    async fn test_url_match_shortener() {
         let youtube = YoutubeRE {};
         let url_match = youtube
             .match_extractor(&Url::parse("https://youtu.be/dQw4w9WgXcQ").unwrap())
+            .await
             .unwrap();
         assert_eq!(url_match.id, "dQw4w9WgXcQ");
     }
