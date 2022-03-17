@@ -3,8 +3,8 @@ pub mod response {
         use serde::Deserialize;
         use serde_aux::prelude::*;
 
-        use crate::extractors::api::{self, MediaFormat, FormatBreed};
-        
+        use crate::extractors::api::{self, Extraction, FormatBreed, MediaFormat, MediaMetadata};
+
         #[derive(SmartDefault, Deserialize, PartialEq, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct Format {
@@ -49,7 +49,9 @@ pub mod response {
                 MediaFormat {
                     id: fmt.itag.to_string(),
                     url: fmt.url.unwrap(),
-                    video_details: if breed == FormatBreed::Video || breed == FormatBreed::AudioVideo {
+                    video_details: if breed == FormatBreed::Video
+                        || breed == FormatBreed::AudioVideo
+                    {
                         Some(api::VideoDetails {
                             width: fmt.width,
                             height: fmt.height,
@@ -58,7 +60,9 @@ pub mod response {
                     } else {
                         None
                     },
-                    audio_details: if breed == FormatBreed::Audio || breed == FormatBreed::AudioVideo {
+                    audio_details: if breed == FormatBreed::Audio
+                        || breed == FormatBreed::AudioVideo
+                    {
                         Some(api::AudioDetails {
                             channels: fmt.audio_channels,
                             ..Default::default()
@@ -166,17 +170,140 @@ pub mod response {
             pub external_video_id: Option<String>,
         }
 
-        #[derive(Deserialize, PartialEq, Debug)]
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct RunsWrapper {
             pub simple_text: Option<String>,
             pub runs: Option<Vec<RunsInner>>,
         }
 
-        #[derive(Deserialize, PartialEq, Debug)]
+        impl From<RunsWrapper> for String {
+            fn from(runsw: RunsWrapper) -> Self {
+                if let Some(txt) = runsw.simple_text {
+                    return txt;
+                }
+                let mut s = String::new();
+                if let Some(runs) = runsw.runs {
+                    for p in runs {
+                        s.push_str(&p.text);
+                    }
+                }
+                return s.to_string();
+            }
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct RunsInner {
             pub text: String,
+            pub navigation_endpoint: Option<NavigationEndpoint>,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct NavigationEndpoint {
+            pub browse_endpoint: Option<BrowseEndpoint>,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct BrowseEndpoint {
+            pub browse_id: String,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub enum Renderer {
+            /// { "twoColumnBrowseResultsRenderer": { "tabs": [ "tabRenderer": { .. } ] } }
+            TwoColumnBrowseResultsRenderer {
+                tabs: Vec<Renderer>,
+            },
+            SingleColumnBrowseResultsRenderer {
+                tabs: Vec<Renderer>,
+            },
+            TabRenderer {
+                content: Option<Box<Renderer>>,
+            },
+            SectionListRenderer {
+                contents: Vec<PlaylistVideoListRendererWrapper>,
+            },
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct PlaylistVideoListRendererWrapper {
+            pub playlist_video_list_renderer: PlaylistVideoListRenderer,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct PlaylistVideoListContinuationWrapper {
+            pub playlist_video_list_continuation: PlaylistVideoListRenderer,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct PlaylistVideoListRenderer {
+            pub contents: Option<Vec<PlaylistVideoRendererWrapper>>,
+            pub continuations: Option<Vec<ContinuationWrapper>>,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct ContinuationWrapper {
+            pub next_continuation_data: Continuation,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct Continuation {
+            pub continuation: String,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct PlaylistVideoRendererWrapper {
+            pub playlist_video_renderer: Option<PlaylistVideoRenderer>,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct PlaylistVideoRenderer {
+            // this piece of shit stores the video id in ANDROID (I fucking hate innertube)
+            pub binding: VideoClientBindingDataWrapper,
+            pub title: RunsWrapper,
+            pub index: Option<RunsWrapper>,
+            pub short_byline_text: Option<RunsWrapper>,
+            #[serde(deserialize_with = "deserialize_option_number_from_string")]
+            #[serde(default)]
+            pub length_seconds: Option<u64>,
+            pub is_playable: Option<bool>,
+        }
+
+        impl From<PlaylistVideoRenderer> for Extraction {
+            fn from(vr: PlaylistVideoRenderer) -> Self {
+                Self {
+                    metadata: Some(MediaMetadata {
+                        id: vr.binding.video_client_binding_data.video_id,
+                        title: vr.title.into(),
+                        ..Default::default()
+                    }),
+                    playback: None,
+                    ..Default::default()
+                }
+            }
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct VideoClientBindingDataWrapper {
+            pub video_client_binding_data: VideoClientBindingData,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct VideoClientBindingData {
+            pub video_id: String,
         }
     }
 
@@ -191,6 +318,20 @@ pub mod response {
         pub video_details: parts::VideoDetails,
         pub microformat: Option<parts::MicroformatsWrapper>,
     }
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    #[serde(rename_all = "camelCase")]
+    /// `/youtubei/v1/browse`
+    pub struct Browse {
+        pub contents: Option<parts::Renderer>,
+    }
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    #[serde(rename_all = "camelCase")]
+    /// `/youtubei/v1/browse`
+    pub struct BrowseContinuation {
+        pub continuation_contents: Option<parts::PlaylistVideoListContinuationWrapper>,
+    }
 }
 
 pub mod request {
@@ -199,13 +340,13 @@ pub mod request {
 
         #[derive(SmartDefault, Serialize, Clone, Copy, Debug)]
         #[serde(rename_all = "camelCase")]
-        pub struct ThirdParty <'a> {
+        pub struct ThirdParty<'a> {
             pub embed_url: &'a str,
         }
 
         #[derive(SmartDefault, Serialize, Clone, Copy, Debug)]
         #[serde(rename_all = "camelCase")]
-        pub struct ContextClient <'a> {
+        pub struct ContextClient<'a> {
             pub client_name: &'a str,
             pub client_version: &'a str,
             pub client_screen: Option<&'a str>,
@@ -220,9 +361,9 @@ pub mod request {
 
         #[derive(SmartDefault, Serialize, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
-        pub struct Context <'a> {
-            pub client: ContextClient <'a>,
-            pub third_party: Option<ThirdParty <'a>>,
+        pub struct Context<'a> {
+            pub client: ContextClient<'a>,
+            pub third_party: Option<ThirdParty<'a>>,
         }
 
         #[derive(SmartDefault, Serialize, Clone, Debug)]
@@ -244,13 +385,13 @@ pub mod request {
 
     #[derive(SmartDefault, Serialize, Clone, Copy, Debug)]
     #[serde(rename_all = "camelCase")]
-    pub struct Client <'a> {
+    pub struct Client<'a> {
         pub name: &'a str,
         pub client_id: Option<u16>,
         #[default = "AIzaSyDCU8hByM-4DrUqRUYnGn-3llEO78bcxq8"]
         pub api_key: &'a str,
-        pub context: parts::ContextClient <'a>,
-        pub third_party: Option<parts::ThirdParty <'a>>,
+        pub context: parts::ContextClient<'a>,
+        pub third_party: Option<parts::ThirdParty<'a>>,
         #[default = "www.youtube.com"]
         pub host: &'a str,
         pub js_needed: bool,
@@ -258,7 +399,10 @@ pub mod request {
 
     /// INNERTUBE_CLIENTS from yt-dlp: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube.py
     pub mod clients {
-        use super::{Client, parts::{ContextClient, ThirdParty}};
+        use super::{
+            parts::{ContextClient, ThirdParty},
+            Client,
+        };
         pub static ANDROID_MUSIC: Client = Client {
             name: "android_music",
             client_id: Some(21),
@@ -549,13 +693,23 @@ pub mod request {
     #[derive(SmartDefault, Serialize, Debug)]
     #[serde(rename_all = "camelCase")]
     /// `/youtubei/v1/player`
-    pub struct Player <'a> {
+    pub struct Player<'a> {
         pub video_id: String,
-        pub context: parts::Context <'a>,
+        pub context: parts::Context<'a>,
         #[default = true]
         pub content_check_ok: bool,
         #[default = true]
         pub racy_check_ok: bool,
         pub playback_context: parts::PlaybackContext,
+    }
+
+    #[derive(SmartDefault, Serialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    /// `/youtubei/v1/browse`
+    pub struct Browse<'a> {
+        /// Note: browse_id is NOT just the playlist/channel/whatever ID
+        pub browse_id: String,
+        pub continuation: Option<String>,
+        pub context: parts::Context<'a>,
     }
 }

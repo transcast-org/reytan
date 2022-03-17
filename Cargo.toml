@@ -13,6 +13,7 @@ keywords = ["scraper", "youtube"]
 [dependencies]
 anyhow = "1.0.53"
 async-trait = "0.1.52"
+futures = "^0.3"
 lazy_static = "1.4.0"
 reqwest = { version = "0.11.9", features = ["gzip", "brotli", "deflate", "cookies", "json"] }
 serde = { version = "1.0.136", features = ["derive"] }

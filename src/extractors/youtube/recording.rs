@@ -1,15 +1,17 @@
 use crate::extractors::api::{
-    ExtractLevel, Extractable, Extraction, MediaFormat, MediaMetadata, MediaPlayback,
-    RecordingExtractor, URLMatch, URLMatcher,
+    Extractable, Extraction, MediaFormat, MediaMetadata, MediaPlayback, RecordingExtractor,
+    URLMatch, URLMatcher,
 };
-use crate::extractors::youtube::common::{YOUTUBE_HOSTS_MAIN, YOUTUBE_HOSTS_SHORT};
+use crate::extractors::youtube::common::{
+    innertube_request, YOUTUBE_HOSTS_MAIN, YOUTUBE_HOSTS_SHORT,
+};
 use crate::extractors::youtube::types::{
     request::{self, clients::ANDROID_MUSIC},
     response::{self, parts::StreamingData},
 };
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_trait::async_trait;
-use reqwest::{self, header, Client};
+use reqwest::{self, Client};
 use url::Url;
 
 pub struct YoutubeRE {}
@@ -30,33 +32,7 @@ impl YoutubeRE {
             ..Default::default()
         };
         println!("{:?}", json);
-        let mut headers = header::HeaderMap::new();
-        headers.insert(header::USER_AGENT, "okhttp/4.9.3".parse()?);
-        headers.insert("Sec-Fetch-Mode", "navigate".parse()?);
-        headers.insert(
-            header::COOKIE,
-            "PREF=hl=en&tz=UTC; CONSENT=YES+cb.20210328-17-p0.en+FX+929".parse()?,
-        );
-        headers.insert(header::ORIGIN, format!("https://{}", client.host).parse()?);
-        if let Some(client_id) = client.client_id {
-            headers.insert("X-Youtube-Client-Name", client_id.into());
-        }
-        headers.insert(
-            "X-Youtube-Client-Version",
-            client.context.client_version.parse()?,
-        );
-        let resp = http
-            .post(format!(
-                "https://www.youtube.com/youtubei/v1/player?key={}",
-                client.api_key
-            ))
-            .json(&json)
-            .headers(headers)
-            .send()
-            .await?
-            .json::<response::Player>()
-            .await?;
-        Ok(resp)
+        innertube_request(http, client, "player", json).await
     }
 }
 
@@ -116,7 +92,7 @@ impl RecordingExtractor for YoutubeRE {
         self,
         http: &reqwest::Client,
         id: &str,
-        wanted: &Extractable,
+        _wanted: &Extractable,
     ) -> Result<Extraction> {
         let player = self.yti_player(http, id, &ANDROID_MUSIC).await?;
         let fmts = if let Some(stream) = player.streaming_data {
@@ -125,25 +101,16 @@ impl RecordingExtractor for YoutubeRE {
             None
         };
         Ok(Extraction {
-            metadata: Some(Ok(MediaMetadata {
+            metadata: Some(MediaMetadata {
                 id: player.video_details.video_id,
                 title: player.video_details.title,
                 ..Default::default()
-            })),
+            }),
             playback: if let Some(formats) = fmts {
-                Some(Ok(MediaPlayback {
+                Some(MediaPlayback {
                     formats,
                     ..Default::default()
-                }))
-            } else if wanted.playback != ExtractLevel::None {
-                Some(Err(anyhow!(
-                    "No playback: {}, {}",
-                    player.playability_status.status,
-                    player
-                        .playability_status
-                        .reason
-                        .unwrap_or("(no reason)".to_string(),)
-                )))
+                })
             } else {
                 None
             },
@@ -209,9 +176,9 @@ mod tests {
             .await
             .expect("player response");
         println!("{:?}", response);
-        let meta = response.metadata.expect("metadata").expect("metadata");
+        let meta = response.metadata.expect("metadata");
         assert_eq!(meta.title, "DECO*27 - ゴーストルール feat. 初音ミク");
-        let play = response.playback.expect("playback").expect("playback");
+        let play = response.playback.expect("playback");
         assert!(play.formats.len() > 0);
         let f251 = play
             .formats

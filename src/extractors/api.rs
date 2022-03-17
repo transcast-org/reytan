@@ -1,6 +1,6 @@
+use anyhow::Result;
 use async_trait::async_trait;
 use serde::Serialize;
-use anyhow::Result;
 use url::Url;
 
 pub trait URLMatcher {
@@ -13,7 +13,12 @@ pub struct URLMatch {
 
 #[async_trait]
 pub trait RecordingExtractor {
-    async fn extract_recording(self, http: &reqwest::Client, id: &str, wanted: &Extractable) -> Result<Extraction>;
+    async fn extract_recording(
+        self,
+        http: &reqwest::Client,
+        id: &str,
+        wanted: &Extractable,
+    ) -> Result<Extraction>;
 }
 
 /// What should be extracted from the service.
@@ -36,24 +41,24 @@ pub enum ExtractLevel {
     Extended,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct Extraction {
-    pub metadata: Option<Result<MediaMetadata>>,
-    pub playback: Option<Result<MediaPlayback>>,
+    pub metadata: Option<MediaMetadata>,
+    pub playback: Option<MediaPlayback>,
 }
 
-#[derive(Serialize, Default, PartialEq, Debug)]
+#[derive(Serialize, Default, PartialEq, Clone, Debug)]
 pub struct MediaMetadata {
     pub id: String,
     pub title: String,
 }
 
-#[derive(Serialize, Default, PartialEq, Debug)]
+#[derive(Serialize, Default, PartialEq, Clone, Debug)]
 pub struct MediaPlayback {
     pub formats: Vec<MediaFormat>,
 }
 
-#[derive(Serialize, SmartDefault, PartialEq, Debug)]
+#[derive(Serialize, SmartDefault, PartialEq, Clone, Debug)]
 pub struct MediaFormat {
     pub id: String,
     pub breed: FormatBreed,
@@ -63,7 +68,7 @@ pub struct MediaFormat {
 }
 
 /// Format type
-#[derive(Serialize, SmartDefault, PartialEq, Debug)]
+#[derive(Serialize, SmartDefault, PartialEq, Clone, Debug)]
 pub enum FormatBreed {
     #[default]
     AudioVideo,
@@ -71,13 +76,74 @@ pub enum FormatBreed {
     Audio,
 }
 
-#[derive(Serialize, SmartDefault, PartialEq, Debug)]
+#[derive(Serialize, SmartDefault, PartialEq, Clone, Debug)]
 pub struct VideoDetails {
     pub width: Option<u32>,
     pub height: Option<u32>,
 }
 
-#[derive(Serialize, SmartDefault, PartialEq, Debug)]
+#[derive(Serialize, SmartDefault, PartialEq, Clone, Debug)]
 pub struct AudioDetails {
     pub channels: Option<u8>,
+}
+
+#[derive(SmartDefault, PartialEq, Debug)]
+pub enum ListBreed {
+    /// User-defined set of music (incl. liked videos)
+    #[default]
+    Playlist,
+    /// Anything uploaded by a channel/user account
+    Channel,
+    /// Machine-defined set of music, probably (virtually) endless
+    /// (see: YouTube Mixes based on a song, Spotify/Tidal artist radio)
+    Mix,
+}
+
+/// Used as a result of the list extraction.
+/// Some extractors may return another, nested lists, examples:
+///     * volumes of an album
+///     * channel's playlists
+///     * artist's albums (and the songs)
+#[derive(Debug)]
+pub enum AnyExtraction {
+    Recording(Extraction),
+    List(ListExtraction),
+}
+
+/// What the list extractor spits out at you.
+#[derive(Default, Debug)]
+pub struct ListExtraction {
+    pub id: String,
+    pub breed: ListBreed,
+    pub is_endless: bool,
+    pub entries: Option<Result<Vec<AnyExtraction>>>,
+    /// Gets returned if there are more items (like a next page).
+    /// Pass it as `continuation` to ListExtractor.extract_list, in order to fetch more items.
+    pub continuation: Option<String>,
+}
+
+/// What the list extractor spits out at you (again, if you want more)
+#[derive(Default, Debug)]
+pub struct ListContinuation {
+    pub id: String,
+    pub entries: Option<Result<Vec<AnyExtraction>>>,
+    /// Gets returned if there are more items (like a next page).
+    /// Pass it as `continuation` to ListExtractor.extract_list, in order to fetch more items.
+    pub continuation: Option<String>,
+}
+
+#[async_trait]
+pub trait ListExtractor {
+    /// Extracts something that is a list from the service.
+    ///
+    /// `continuation` is to be used if you're fetching the next portion (page) of the list, as returned in ListExtraction.continuation.
+    async fn extract_list_initial(self, http: &reqwest::Client, id: &str)
+        -> Result<ListExtraction>;
+
+    async fn extract_list_continuation(
+        self,
+        http: &reqwest::Client,
+        id: &str,
+        continuation: &str,
+    ) -> Result<ListContinuation>;
 }
