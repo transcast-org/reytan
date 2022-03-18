@@ -38,7 +38,7 @@ impl YoutubeRE {
 
 #[async_trait]
 impl URLMatcher for YoutubeRE {
-    async fn match_extractor(self, url: &Url) -> Option<URLMatch> {
+    async fn match_extractor(self, url: &Url, _http: &reqwest::Client) -> Option<URLMatch> {
         let scheme = url.scheme();
         if scheme != "http" && scheme != "https" {
             return None;
@@ -196,7 +196,10 @@ mod tests {
     async fn test_url_match_watch() {
         let youtube = YoutubeRE {};
         let url_match = youtube
-            .match_extractor(&Url::parse("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap())
+            .match_extractor(
+                &Url::parse("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap(),
+                &build_http(),
+            )
             .await
             .unwrap();
         assert_eq!(url_match.id, "dQw4w9WgXcQ");
@@ -206,7 +209,10 @@ mod tests {
     async fn test_url_match_video() {
         let youtube = YoutubeRE {};
         let url_match = youtube
-            .match_extractor(&Url::parse("https://www.youtube.com/video/dQw4w9WgXcQ").unwrap())
+            .match_extractor(
+                &Url::parse("https://www.youtube.com/video/dQw4w9WgXcQ").unwrap(),
+                &build_http(),
+            )
             .await
             .unwrap();
         assert_eq!(url_match.id, "dQw4w9WgXcQ");
@@ -216,7 +222,10 @@ mod tests {
     async fn test_url_match_shorts() {
         let youtube = YoutubeRE {};
         let url_match = youtube
-            .match_extractor(&Url::parse("https://www.youtube.com/shorts/dQw4w9WgXcQ").unwrap())
+            .match_extractor(
+                &Url::parse("https://www.youtube.com/shorts/dQw4w9WgXcQ").unwrap(),
+                &build_http(),
+            )
             .await
             .unwrap();
         assert_eq!(url_match.id, "dQw4w9WgXcQ");
@@ -226,7 +235,10 @@ mod tests {
     async fn test_url_match_shortener() {
         let youtube = YoutubeRE {};
         let url_match = youtube
-            .match_extractor(&Url::parse("https://youtu.be/dQw4w9WgXcQ").unwrap())
+            .match_extractor(
+                &Url::parse("https://youtu.be/dQw4w9WgXcQ").unwrap(),
+                &build_http(),
+            )
             .await
             .unwrap();
         assert_eq!(url_match.id, "dQw4w9WgXcQ");

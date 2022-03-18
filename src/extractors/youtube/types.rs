@@ -1,9 +1,14 @@
+use self::response::parts::Continuation;
+
 pub mod response {
     pub mod parts {
         use serde::Deserialize;
         use serde_aux::prelude::*;
 
-        use crate::extractors::api::{self, Extraction, FormatBreed, MediaFormat, MediaMetadata};
+        use crate::extractors::{
+            api::{self, Extraction, FormatBreed, MediaFormat, MediaMetadata},
+            youtube::types::VideoList,
+        };
 
         #[derive(SmartDefault, Deserialize, PartialEq, Debug)]
         #[serde(rename_all = "camelCase")]
@@ -209,6 +214,7 @@ pub mod response {
         #[serde(rename_all = "camelCase")]
         pub struct BrowseEndpoint {
             pub browse_id: String,
+            pub params: Option<String>,
         }
 
         #[derive(Deserialize, PartialEq, Clone, Debug)]
@@ -225,7 +231,13 @@ pub mod response {
                 content: Option<Box<Renderer>>,
             },
             SectionListRenderer {
-                contents: Vec<PlaylistVideoListRendererWrapper>,
+                contents: Option<Vec<ActualVideoListRenderer>>,
+            },
+            ItemSectionRenderer {
+                contents: Vec<Renderer>,
+            },
+            PlaylistVideoListRendererWrapper {
+                playlist_video_list_renderer: ActualVideoListRenderer,
             },
         }
 
@@ -237,8 +249,91 @@ pub mod response {
 
         #[derive(Deserialize, PartialEq, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
+        pub enum ActualVideoListRenderer {
+            PlaylistVideoListRenderer {
+                contents: Option<Vec<PlaylistVideoRendererWrapper>>,
+                continuations: Option<Vec<ContinuationWrapper>>,
+            },
+            PlaylistVideoListContinuation {
+                contents: Option<Vec<PlaylistVideoRendererWrapper>>,
+                continuations: Option<Vec<ContinuationWrapper>>,
+            },
+            ItemSectionRenderer {
+                contents: Option<Vec<ElementRendererWrapper>>,
+                continuations: Option<Vec<ContinuationWrapper>>,
+            },
+            ItemSectionContinuation {
+                contents: Option<Vec<ElementRendererWrapper>>,
+                continuations: Option<Vec<ContinuationWrapper>>,
+            },
+        }
+
+        impl From<ActualVideoListRenderer> for VideoList<Extraction> {
+            fn from(avlr: ActualVideoListRenderer) -> Self {
+                match avlr {
+                    ActualVideoListRenderer::PlaylistVideoListRenderer {
+                        contents,
+                        continuations,
+                    }
+                    | ActualVideoListRenderer::PlaylistVideoListContinuation {
+                        contents,
+                        continuations,
+                    } => VideoList::<Extraction> {
+                        videos: contents
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|pvrw| pvrw.playlist_video_renderer)
+                            .filter(|pvr| pvr.is_some())
+                            .map(|pvr| pvr.unwrap())
+                            .map(|pvr| pvr.into())
+                            .collect(),
+                        continuations: continuations
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|cw| cw.next_continuation_data)
+                            .collect(),
+                    },
+                    ActualVideoListRenderer::ItemSectionRenderer {
+                        contents,
+                        continuations,
+                    }
+                    | ActualVideoListRenderer::ItemSectionContinuation {
+                        contents,
+                        continuations,
+                    } => VideoList::<Extraction> {
+                        videos: contents
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|erw| {
+                                erw.element_renderer
+                                    .new_element
+                                    .typee
+                                    .component_type
+                                    .model
+                                    .compact_video_model
+                                    .into()
+                            })
+                            .collect(),
+                        continuations: continuations
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|cw| cw.next_continuation_data)
+                            .collect(),
+                    },
+                }
+            }
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
         pub struct PlaylistVideoListContinuationWrapper {
             pub playlist_video_list_continuation: PlaylistVideoListRenderer,
+        }
+
+        impl From<PlaylistVideoListContinuationWrapper> for VideoList<PlaylistVideoRenderer> {
+            fn from(pvlcw: PlaylistVideoListContinuationWrapper) -> Self {
+                pvlcw.playlist_video_list_continuation.into()
+            }
         }
 
         #[derive(Deserialize, PartialEq, Clone, Debug)]
@@ -246,6 +341,27 @@ pub mod response {
         pub struct PlaylistVideoListRenderer {
             pub contents: Option<Vec<PlaylistVideoRendererWrapper>>,
             pub continuations: Option<Vec<ContinuationWrapper>>,
+        }
+
+        impl From<PlaylistVideoListRenderer> for VideoList<PlaylistVideoRenderer> {
+            fn from(plvr: PlaylistVideoListRenderer) -> Self {
+                VideoList::<PlaylistVideoRenderer> {
+                    videos: plvr
+                        .contents
+                        .unwrap()
+                        .into_iter()
+                        .map(|vrw| vrw.playlist_video_renderer)
+                        .filter(|vr| vr.is_some())
+                        .map(|vr| vr.unwrap())
+                        .collect(),
+                    continuations: plvr
+                        .continuations
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|cw| cw.next_continuation_data)
+                        .collect(),
+                }
+            }
         }
 
         #[derive(Deserialize, PartialEq, Clone, Debug)]
@@ -305,6 +421,104 @@ pub mod response {
         pub struct VideoClientBindingData {
             pub video_id: String,
         }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct ElementRendererWrapper {
+            pub element_renderer: ElementRenderer,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct ElementRenderer {
+            pub new_element: NewElement,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct NewElement {
+            #[serde(rename = "type")]
+            /// "type" from JSON, renamed due to "type" being a reserved keyword
+            pub typee: NewElementType,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct NewElementType {
+            pub component_type: ComponentType,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct ComponentType {
+            pub model: ComponentModel,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct ComponentModel {
+            pub compact_video_model: CompactVideoModel,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct CompactVideoModel {
+            pub compact_video_data: CompactVideoData,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct CompactVideoData {
+            pub video_data: VideoData,
+            pub on_tap: OnTap,
+        }
+
+        impl From<CompactVideoModel> for Extraction {
+            fn from(cvm: CompactVideoModel) -> Self {
+                Extraction {
+                    metadata: Some(MediaMetadata {
+                        id: cvm
+                            .compact_video_data
+                            .on_tap
+                            .innertube_command
+                            .watch_endpoint
+                            .video_id,
+                        title: cvm.compact_video_data.video_data.metadata.title,
+                    }),
+                    playback: None,
+                }
+            }
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct VideoData {
+            pub metadata: VideoMetadata,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct VideoMetadata {
+            pub title: String,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct OnTap {
+            pub innertube_command: InnertubeCommand,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct InnertubeCommand {
+            pub watch_endpoint: WatchEndpoint,
+        }
+
+        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct WatchEndpoint {
+            pub video_id: String,
+        }
     }
 
     use serde::Deserialize;
@@ -330,7 +544,14 @@ pub mod response {
     #[serde(rename_all = "camelCase")]
     /// `/youtubei/v1/browse`
     pub struct BrowseContinuation {
-        pub continuation_contents: Option<parts::PlaylistVideoListContinuationWrapper>,
+        pub continuation_contents: Option<parts::ActualVideoListRenderer>,
+    }
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    #[serde(rename_all = "camelCase")]
+    /// `/youtubei/v1/navigation/resolve_url`
+    pub struct NavigationResolve {
+        pub endpoint: parts::NavigationEndpoint,
     }
 }
 
@@ -707,9 +928,24 @@ pub mod request {
     #[serde(rename_all = "camelCase")]
     /// `/youtubei/v1/browse`
     pub struct Browse<'a> {
-        /// Note: browse_id is NOT just the playlist/channel/whatever ID
+        /// Note: browse_id is NOT just the playlist ID, you might need to use /navigation/resolve_url
         pub browse_id: String,
         pub continuation: Option<String>,
         pub context: parts::Context<'a>,
+        /// Possibly returned by /navigation/resolve_url
+        pub params: Option<String>,
     }
+
+    #[derive(SmartDefault, Serialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    /// `/youtubei/v1/navigation/resolve_url`
+    pub struct NavigationResolve<'a> {
+        pub context: parts::Context<'a>,
+        pub url: String,
+    }
+}
+
+pub struct VideoList<T> {
+    pub videos: Vec<T>,
+    pub continuations: Vec<Continuation>,
 }
