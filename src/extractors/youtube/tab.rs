@@ -310,7 +310,7 @@ mod tests {
         let ytt = YoutubeTabLE {};
         let id = &ytt
             .match_extractor(
-                &Url::parse("https://www.youtube.com/c/DariaZawia%C5%82owofficial").unwrap(),
+                &Url::parse("https://www.youtube.com/c/Astrophysicsynth/videos").unwrap(),
                 &http,
             )
             .await
@@ -318,7 +318,7 @@ mod tests {
             .id;
         let initial = ytt.extract_list_initial(&http, &id).await.unwrap();
         println!("{:#?}", initial);
-        assert!(initial.id.starts_with("UCTmABeIeNXBvh1DUG8EDCSw"));
+        assert!(initial.id.starts_with("UCWSC_-y9QsDmACXRY3rvtsQ#"));
         assert_eq!(initial.breed, ListBreed::Channel);
         assert_eq!(initial.is_endless, false);
         let stream = stream::unfold(initial.continuation.clone(), |state| {
