@@ -95,6 +95,8 @@ pub enum ListBreed {
     Playlist,
     /// Anything uploaded by a channel/user account
     Channel,
+    /// An album, as defined by publisher
+    Album,
     /// Machine-defined set of music, probably (virtually) endless
     /// (see: YouTube Mixes based on a song, Spotify/Tidal artist radio)
     Mix,
@@ -116,6 +118,7 @@ pub enum AnyExtraction {
 pub struct ListExtraction {
     pub id: String,
     pub breed: ListBreed,
+    pub title: String,
     pub is_endless: bool,
     pub entries: Option<Result<Vec<AnyExtraction>>>,
     /// Gets returned if there are more items (like a next page).

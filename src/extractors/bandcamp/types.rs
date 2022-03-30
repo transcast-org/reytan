@@ -3,6 +3,7 @@ pub mod web_fragments {
 
     #[derive(SmartDefault, Deserialize, PartialEq, Debug)]
     pub struct DataTralbum {
+        pub current: parts::Current,
         pub trackinfo: Vec<parts::Trackinfo>,
         pub url: String,
     }
@@ -21,6 +22,11 @@ pub mod web_fragments {
             pub title: String,
             pub lyrics: Option<String>,
             pub duration: Option<f64>,
+        }
+
+        #[derive(SmartDefault, Deserialize, PartialEq, Debug)]
+        pub struct Current {
+            pub title: String,
         }
     }
 }

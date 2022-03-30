@@ -210,6 +210,7 @@ impl ListExtractor for YoutubeTabLE {
             } else {
                 None
             },
+            ..Default::default()
         });
     }
 
