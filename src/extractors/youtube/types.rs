@@ -677,25 +677,6 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: false,
         };
-        pub static ANDROID_AGEGATE: Client = Client {
-            name: "android_agegate",
-            client_id: Some(3),
-            api_key: "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w",
-            context: ContextClient {
-                client_name: "ANDROID",
-                client_version: "16.49",
-                client_screen: Some("EMBED"),
-                device_model: None,
-                hl: "en",
-                time_zone: "UTC",
-                utc_offset_minutes: 0,
-            },
-            third_party: Some(ThirdParty {
-                embed_url: "https://google.com",
-            }),
-            host: "www.youtube.com",
-            js_needed: false,
-        };
         pub static ANDROID_CREATOR: Client = Client {
             name: "android_creator",
             client_id: Some(14),
@@ -738,25 +719,6 @@ pub mod request {
                 client_name: "IOS_MESSAGES_EXTENSION",
                 client_version: "16.46",
                 client_screen: None,
-                device_model: Some("iPhone14,3"),
-                hl: "en",
-                time_zone: "UTC",
-                utc_offset_minutes: 0,
-            },
-            third_party: Some(ThirdParty {
-                embed_url: "https://google.com",
-            }),
-            host: "www.youtube.com",
-            js_needed: false,
-        };
-        pub static IOS_AGEGATE: Client = Client {
-            name: "ios_agegate",
-            client_id: Some(66),
-            api_key: "AIzaSyDCU8hByM-4DrUqRUYnGn-3llEO78bcxq8",
-            context: ContextClient {
-                client_name: "IOS_MESSAGES_EXTENSION",
-                client_version: "16.46",
-                client_screen: Some("EMBED"),
                 device_model: Some("iPhone14,3"),
                 hl: "en",
                 time_zone: "UTC",
@@ -839,25 +801,6 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: true,
         };
-        pub static WEB_AGEGATE: Client = Client {
-            name: "web_agegate",
-            client_id: Some(1),
-            api_key: "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
-            context: ContextClient {
-                client_name: "WEB",
-                client_version: "2.20211221.00.00",
-                client_screen: Some("EMBED"),
-                device_model: None,
-                hl: "en",
-                time_zone: "UTC",
-                utc_offset_minutes: 0,
-            },
-            third_party: Some(ThirdParty {
-                embed_url: "https://google.com",
-            }),
-            host: "www.youtube.com",
-            js_needed: true,
-        };
         pub static WEB_MUSIC: Client = Client {
             name: "web_music",
             client_id: Some(67),
@@ -906,6 +849,25 @@ pub mod request {
                 utc_offset_minutes: 0,
             },
             third_party: None,
+            host: "www.youtube.com",
+            js_needed: true,
+        };
+        pub static TV_EMBEDDED: Client = Client {
+            name: "tv_embedded",
+            client_id: Some(85),
+            api_key: "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
+            context: ContextClient {
+                client_name: "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+                client_version: "2.0",
+                client_screen: None,
+                device_model: None,
+                hl: "en",
+                time_zone: "UTC",
+                utc_offset_minutes: 0,
+            },
+            third_party: Some(ThirdParty {
+                embed_url: "https://www.youtube.com",
+            }),
             host: "www.youtube.com",
             js_needed: true,
         };

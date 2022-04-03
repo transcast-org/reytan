@@ -128,7 +128,7 @@ mod tests {
     };
     use url::Url;
 
-    use super::super::types::request::clients::{ANDROID_AGEGATE, ANDROID_MUSIC};
+    use super::super::types::request::clients::{ANDROID_MUSIC, TV_EMBEDDED};
     use super::YoutubeRE;
 
     #[tokio::test]
@@ -150,7 +150,7 @@ mod tests {
     async fn do_yti_player_agegate() {
         let youtube = YoutubeRE {};
         let response = youtube
-            .yti_player(&build_http(), "o6wtDPVkKqI", &ANDROID_AGEGATE)
+            .yti_player(&build_http(), "o6wtDPVkKqI", &TV_EMBEDDED)
             .await
             .expect("yti player");
         println!("{:?}", response);
