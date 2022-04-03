@@ -1,8 +1,7 @@
 use crate::extractors::{
     api::{
-        AnyExtraction, AudioDetails, Extractable, Extraction, FormatBreed, ListBreed,
-        ListContinuation, ListExtraction, ListExtractor, MediaFormat, MediaMetadata, MediaPlayback,
-        RecordingExtractor, URLMatch, URLMatcher,
+        AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
+        MediaMetadata, MediaPlayback, URLMatch, URLMatcher,
     },
     bandcamp::types::web_fragments::DataTralbum,
 };
@@ -96,11 +95,11 @@ impl ListExtractor for BandcampAlbumLE {
 
     async fn extract_list_continuation(
         self,
-        http: &reqwest::Client,
-        id: &str,
-        continuation: &str,
+        _http: &reqwest::Client,
+        _id: &str,
+        _continuation: &str,
     ) -> Result<ListContinuation> {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -108,7 +107,7 @@ impl ListExtractor for BandcampAlbumLE {
 mod tests {
     use crate::{
         build_http,
-        extractors::api::{ExtractLevel, ListBreed, ListExtractor, RecordingExtractor, URLMatcher},
+        extractors::api::{ListBreed, ListExtractor, URLMatcher},
     };
     use url::Url;
 
