@@ -22,18 +22,44 @@ impl URLMatcher for BandcampAlbumLE {
         }
         if let Some(hostname) = url.host_str() {
             let segments: Vec<&str> = url.path_segments().unwrap_or("".split('/')).collect();
-            if hostname.ends_with(".bandcamp.com") {
-                match segments.get(0).unwrap_or(&"") {
-                    &"album" => {
-                        if let Some(id) = segments.get(1) {
-                            return Some(URLMatch {
-                                // making sure there's no extra things
-                                id: format!("https://{}/album/{}", hostname, id),
-                            });
+            if !hostname.ends_with(".bandcamp.com") {
+                let lkup = trust_dns_resolver::AsyncResolver::tokio_from_system_conf()
+                    .unwrap()
+                    .lookup(
+                        hostname,
+                        trust_dns_resolver::proto::rr::RecordType::CNAME,
+                        trust_dns_resolver::proto::xfer::DnsRequestOptions::default(),
+                    )
+                    .await
+                    .expect("dns response");
+                let maybe_record = lkup.record_iter().last();
+                match maybe_record {
+                    None => return None,
+                    Some(record) => {
+                        if let Some(data) = record.data() {
+                            if let Some(cname) = data.as_cname() {
+                                if cname.to_string() != "dom.bandcamp.com." {
+                                    return None;
+                                }
+                            } else {
+                                return None;
+                            }
+                        } else {
+                            return None;
                         }
                     }
-                    _ => (),
                 }
+            }
+            match segments.get(0).unwrap_or(&"") {
+                &"album" => {
+                    if let Some(id) = segments.get(1) {
+                        return Some(URLMatch {
+                            // making sure there's no extra things
+                            id: format!("https://{}/album/{}", hostname, id),
+                        });
+                    }
+                }
+                _ => (),
             }
         }
         return None;
@@ -130,6 +156,19 @@ mod tests {
             mtch.id,
             "https://miraonthewall.bandcamp.com/album/restoration"
         );
+    }
+
+    #[tokio::test]
+    async fn match_embedded_domain_album_url() {
+        let bandcamp = BandcampAlbumLE {};
+        let mtch = bandcamp
+            .match_extractor(
+                &Url::parse("https://music.gabakulka.com/album/kruche").unwrap(),
+                &build_http(),
+            )
+            .await
+            .expect("valid match");
+        assert_eq!(mtch.id, "https://music.gabakulka.com/album/kruche");
     }
 
     #[tokio::test]

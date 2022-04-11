@@ -22,4 +22,5 @@ serde-aux = "3.0.1"
 serde_json = "1.0.79"
 smart-default = "0.6.0"
 tokio = { version = "1.16.1", features = ["full"] }
+trust-dns-resolver = "0.21.2"
 url = "2.2.2"
