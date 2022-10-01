@@ -1,80 +1,41 @@
-use crate::extractors::{
-    api::{
-        AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
-        MediaMetadata, MediaPlayback, URLMatch, URLMatcher,
-    },
-    bandcamp::types::web_fragments::DataTralbum,
-};
 use anyhow::Result;
 use async_trait::async_trait;
 use nipper::Document;
 use reqwest::header;
 use url::Url;
 
+use super::common::{_is_bandcamp, _path_is};
+use super::types::web_fragments::DataTralbum;
+use crate::extractors::api::{
+    AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
+    MediaMetadata, MediaPlayback, URLMatcher,
+};
+
 pub struct BandcampAlbumLE {}
 
-#[async_trait]
 impl URLMatcher for BandcampAlbumLE {
-    async fn match_extractor(self, url: &Url, _http: &reqwest::Client) -> Option<URLMatch> {
-        let scheme = url.scheme();
-        if scheme != "http" && scheme != "https" {
-            return None;
-        }
-        if let Some(hostname) = url.host_str() {
-            let segments: Vec<&str> = url.path_segments().unwrap_or("".split('/')).collect();
-            if !hostname.ends_with(".bandcamp.com") {
-                let lkup = trust_dns_resolver::AsyncResolver::tokio_from_system_conf()
-                    .unwrap()
-                    .lookup(
-                        hostname,
-                        trust_dns_resolver::proto::rr::RecordType::CNAME,
-                        trust_dns_resolver::proto::xfer::DnsRequestOptions::default(),
-                    )
-                    .await
-                    .expect("dns response");
-                let maybe_record = lkup.record_iter().last();
-                match maybe_record {
-                    None => return None,
-                    Some(record) => {
-                        if let Some(data) = record.data() {
-                            if let Some(cname) = data.as_cname() {
-                                if cname.to_string() != "dom.bandcamp.com." {
-                                    return None;
-                                }
-                            } else {
-                                return None;
-                            }
-                        } else {
-                            return None;
-                        }
-                    }
-                }
-            }
-            match segments.get(0).unwrap_or(&"") {
-                &"album" => {
-                    if let Some(id) = segments.get(1) {
-                        return Some(URLMatch {
-                            // making sure there's no extra things
-                            id: format!("https://{}/album/{}", hostname, id),
-                        });
-                    }
-                }
-                _ => (),
-            }
-        }
-        return None;
+    fn match_extractor(&self, url: &Url) -> bool {
+        Some(url)
+            .filter(|u| match u.scheme() {
+                "http" | "https" => true,
+                _ => false,
+            })
+            // url path starts with `/album/`
+            .filter(|u| _path_is(u, "album"))
+            .filter(_is_bandcamp)
+            .is_some()
     }
 }
 
 #[async_trait]
 impl ListExtractor for BandcampAlbumLE {
     async fn extract_list_initial(
-        self,
+        &self,
         http: &reqwest::Client,
-        id: &str,
+        url: &Url,
     ) -> Result<ListExtraction> {
         let webpage = http
-            .get(id)
+            .get(url.clone())
             .header(
                 header::USER_AGENT,
                 "Mozilla/5.0 (Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
@@ -120,7 +81,7 @@ impl ListExtractor for BandcampAlbumLE {
     }
 
     async fn extract_list_continuation(
-        self,
+        &self,
         _http: &reqwest::Client,
         _id: &str,
         _continuation: &str,
@@ -139,36 +100,16 @@ mod tests {
 
     use super::BandcampAlbumLE;
 
-    #[tokio::test]
-    async fn match_album_url() {
+    #[test]
+    fn match_album_url() {
         let bandcamp = BandcampAlbumLE {};
-        let mtch = bandcamp
-            .match_extractor(
-                &Url::parse(
-                    "http://miraonthewall.bandcamp.com/album/restoration/?utm_source=your_mom#aoeu",
-                )
-                .unwrap(),
-                &build_http(),
+        let mtch = bandcamp.match_extractor(
+            &Url::parse(
+                "http://miraonthewall.bandcamp.com/album/restoration/?utm_source=your_mom#aoeu",
             )
-            .await
-            .expect("valid match");
-        assert_eq!(
-            mtch.id,
-            "https://miraonthewall.bandcamp.com/album/restoration"
+            .unwrap(),
         );
-    }
-
-    #[tokio::test]
-    async fn match_embedded_domain_album_url() {
-        let bandcamp = BandcampAlbumLE {};
-        let mtch = bandcamp
-            .match_extractor(
-                &Url::parse("https://music.gabakulka.com/album/kruche").unwrap(),
-                &build_http(),
-            )
-            .await
-            .expect("valid match");
-        assert_eq!(mtch.id, "https://music.gabakulka.com/album/kruche");
+        assert_eq!(mtch, true);
     }
 
     #[tokio::test]
@@ -177,7 +118,7 @@ mod tests {
         let album = bandcamp
             .extract_list_initial(
                 &build_http(),
-                "https://penelopescott.bandcamp.com/album/public-void",
+                &Url::parse("https://penelopescott.bandcamp.com/album/public-void").unwrap(),
             )
             .await
             .expect("extraction");

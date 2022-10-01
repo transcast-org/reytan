@@ -3,21 +3,16 @@ use async_trait::async_trait;
 use serde::Serialize;
 use url::Url;
 
-#[async_trait]
 pub trait URLMatcher {
-    async fn match_extractor(self, url: &Url, http: &reqwest::Client) -> Option<URLMatch>;
-}
-
-pub struct URLMatch {
-    pub id: String,
+    fn match_extractor(&self, url: &Url) -> bool;
 }
 
 #[async_trait]
 pub trait RecordingExtractor {
     async fn extract_recording(
-        self,
+        &self,
         http: &reqwest::Client,
-        id: &str,
+        url: &Url,
         wanted: &Extractable,
     ) -> Result<Extraction>;
 }
@@ -88,7 +83,7 @@ pub struct AudioDetails {
     pub channels: Option<u8>,
 }
 
-#[derive(SmartDefault, PartialEq, Debug)]
+#[derive(SmartDefault, PartialEq, Clone, Debug)]
 pub enum ListBreed {
     /// User-defined set of music (incl. liked videos)
     #[default]
@@ -141,11 +136,15 @@ pub trait ListExtractor {
     /// Extracts something that is a list from the service.
     ///
     /// `continuation` is to be used if you're fetching the next portion (page) of the list, as returned in ListExtraction.continuation.
-    async fn extract_list_initial(self, http: &reqwest::Client, id: &str)
-        -> Result<ListExtraction>;
+    async fn extract_list_initial(
+        &self,
+        http: &reqwest::Client,
+        url: &Url,
+    ) -> Result<ListExtraction>;
 
+    /// `id` and `continuation` parameters provided by the extract_list_inital method
     async fn extract_list_continuation(
-        self,
+        &self,
         http: &reqwest::Client,
         id: &str,
         continuation: &str,

@@ -1,6 +1,6 @@
 use crate::extractors::api::{
     AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
-    URLMatch, URLMatcher,
+    URLMatcher,
 };
 use crate::extractors::youtube::common::innertube_request;
 use crate::extractors::youtube::types::request::clients::ANDROID;
@@ -75,78 +75,20 @@ impl YoutubeTabLE {
     }
 }
 
-fn pseudo_id_to_id_and_params(psid: String) -> (String, Option<String>) {
-    let s: Vec<&str> = psid.split("#").collect();
-    return (
-        s[0].to_string(),
-        if let Some(p) = s.get(1) {
-            Some(p.to_string())
-        } else {
-            None
-        },
-    );
-}
-
-#[async_trait]
 impl URLMatcher for YoutubeTabLE {
-    async fn match_extractor(self, url: &Url, http: &reqwest::Client) -> Option<URLMatch> {
-        let scheme = url.scheme();
-        if scheme != "http" && scheme != "https" {
-            return None;
-        }
-        if let Some(hostname) = url.host_str() {
-            let segments: Vec<&str> = url.path_segments().unwrap_or("".split('/')).collect();
-            if YOUTUBE_HOSTS_MAIN.contains(&hostname) {
-                let seg0 = segments.get(0).unwrap_or(&"");
-                match seg0 {
-                    &"playlist" => {
-                        if let Some(v) = url.query_pairs().find(|pair| pair.0 == "list") {
-                            return Some(URLMatch {
-                                id: format!("VL{}", v.1),
-                            });
-                        }
-                    }
-                    &"channel" => {
-                        if let Some(id) = segments.get(1) {
-                            return Some(URLMatch { id: id.to_string() });
-                        }
-                    }
-                    &"c" | &"user" => {
-                        if let Some(name) = segments.get(1) {
-                            let nru = self
-                                .yti_navigation_resolve(
-                                    http,
-                                    format!(
-                                        "{}://{}/{}/{}/{}",
-                                        scheme,
-                                        hostname,
-                                        seg0,
-                                        name,
-                                        segments.get(2).unwrap_or(&"videos")
-                                    )
-                                    .as_ref(),
-                                    &ANDROID,
-                                )
-                                .await
-                                .expect("innertube navigation resolve");
-                            let be = nru
-                                .endpoint
-                                .browse_endpoint
-                                .expect("navigation resolve browse endpoint");
-                            return Some(URLMatch {
-                                id: format!(
-                                    "{}#{}",
-                                    be.browse_id,
-                                    be.params.unwrap_or("".to_string())
-                                ),
-                            });
-                        }
-                    }
-                    _ => (),
-                }
-            }
-        }
-        return None;
+    fn match_extractor(&self, url: &Url) -> bool {
+        Some(url)
+            .filter(|u| match u.scheme() {
+                "http" | "https" => true,
+                _ => false,
+            })
+            .filter(|u| {
+                let host = u.host_str().unwrap();
+                let first_segment = u.path_segments().unwrap().next().unwrap();
+                YOUTUBE_HOSTS_MAIN.contains(&host)
+                    && ["playlist", "channel", "c", "user"].contains(&first_segment)
+            })
+            .is_some()
     }
 }
 
@@ -180,24 +122,31 @@ fn get_videos(renderer: Renderer) -> Option<ActualVideoListRenderer> {
 #[async_trait]
 impl ListExtractor for YoutubeTabLE {
     async fn extract_list_initial(
-        self,
+        &self,
         http: &reqwest::Client,
-        id: &str,
+        url: &Url,
     ) -> Result<ListExtraction> {
-        let (browse_id, params) = pseudo_id_to_id_and_params(id.to_string());
+        // let (browse_id, params) = pseudo_id_to_id_and_params(id.to_string());
+        let navigation_resolve = self
+            .yti_navigation_resolve(http, url.as_str(), &ANDROID)
+            .await
+            .unwrap();
+        let browse_end = navigation_resolve.endpoint.browse_endpoint.unwrap();
         let vl: VideoList<Extraction> = {
-            let browse = self.yti_browse(http, &browse_id, &ANDROID, params).await?;
+            let browse = self
+                .yti_browse(http, &browse_end.browse_id, &ANDROID, browse_end.params)
+                .await?;
             println!("{:#?}", browse);
             get_videos(browse.contents.unwrap()).unwrap().into()
         };
-        let breed = if browse_id.starts_with("VL") {
+        let breed = if browse_end.browse_id.starts_with("VL") {
             ListBreed::Playlist
         } else {
             ListBreed::Channel
         };
 
         return Ok(ListExtraction {
-            id: id.to_string(),
+            id: browse_end.browse_id,
             breed,
             is_endless: false,
             entries: Some(Ok(vl
@@ -215,20 +164,19 @@ impl ListExtractor for YoutubeTabLE {
     }
 
     async fn extract_list_continuation(
-        self,
+        &self,
         http: &reqwest::Client,
-        id: &str,
+        browse_id: &str,
         continuation: &str,
     ) -> Result<ListContinuation> {
-        let (browse_id, _) = pseudo_id_to_id_and_params(id.to_string());
         let browse = self
-            .yti_browse_cont(http, &browse_id, &ANDROID, continuation.to_string())
+            .yti_browse_cont(http, browse_id, &ANDROID, continuation.to_string())
             .await?;
         println!("{:#?}", browse);
         let pvlr: VideoList<Extraction> = browse.continuation_contents.unwrap().into();
 
         return Ok(ListContinuation {
-            id: id.to_string(),
+            id: browse_id.to_string(),
             entries: Some(Ok(pvlr
                 .videos
                 .into_iter()
@@ -259,21 +207,23 @@ mod tests {
 
     #[tokio::test]
     async fn do_extract_youtube_playlist() {
-        // https://www.youtube.com/playlist?list=PLpTn8onHfnD2QpCHU-llSG9hbQUwKIVFr
-        let pid = "VLPLpTn8onHfnD2QpCHU-llSG9hbQUwKIVFr";
+        let url =
+            Url::parse("https://www.youtube.com/playlist?list=PLpTn8onHfnD2QpCHU-llSG9hbQUwKIVFr")
+                .unwrap();
         let http = build_http();
         let ytt = YoutubeTabLE {};
-        let initial = ytt.extract_list_initial(&http, pid).await.unwrap();
+        let initial = ytt.extract_list_initial(&http, &url).await.unwrap();
         println!("{:#?}", initial);
-        assert_eq!(initial.id, pid);
+        assert_eq!(initial.id, "VLPLpTn8onHfnD2QpCHU-llSG9hbQUwKIVFr");
         assert_eq!(initial.breed, ListBreed::Playlist);
         assert_eq!(initial.is_endless, false);
         let stream = stream::unfold(initial.continuation.clone(), |state| {
             let local = http.clone();
+            let init_id = initial.id.clone();
             async move {
                 if let Some(conti_token) = state {
                     let continuation = ytt
-                        .extract_list_continuation(&local, pid, &conti_token)
+                        .extract_list_continuation(&local, &init_id, &conti_token)
                         .await
                         .unwrap();
                     Some((
@@ -309,25 +259,21 @@ mod tests {
     async fn do_extract_youtube_channel() {
         let http = build_http();
         let ytt = YoutubeTabLE {};
-        let id = &ytt
-            .match_extractor(
-                &Url::parse("https://www.youtube.com/c/Astrophysicsynth/videos").unwrap(),
-                &http,
-            )
-            .await
-            .expect("tab id")
-            .id;
-        let initial = ytt.extract_list_initial(&http, &id).await.unwrap();
+        let url = &Url::parse("https://www.youtube.com/c/Astrophysicsynth/videos").unwrap();
+        let mtch = ytt.match_extractor(url);
+        assert_eq!(mtch, true);
+        let initial = ytt.extract_list_initial(&http, &url).await.unwrap();
         println!("{:#?}", initial);
-        assert!(initial.id.starts_with("UCWSC_-y9QsDmACXRY3rvtsQ#"));
+        assert_eq!(initial.id, "UCWSC_-y9QsDmACXRY3rvtsQ");
         assert_eq!(initial.breed, ListBreed::Channel);
         assert_eq!(initial.is_endless, false);
         let stream = stream::unfold(initial.continuation.clone(), |state| {
             let local = http.clone();
+            let init_id = initial.id.clone();
             async move {
                 if let Some(conti_token) = state {
                     let continuation = ytt
-                        .extract_list_continuation(&local, &id, &conti_token)
+                        .extract_list_continuation(&local, &init_id, &conti_token)
                         .await
                         .unwrap();
                     Some((

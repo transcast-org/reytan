@@ -17,8 +17,6 @@ fn build_http() -> reqwest::Client {
             .danger_accept_invalid_certs(true)
             .proxy(reqwest::Proxy::all(proxy).unwrap());
     }
-    
-    builder
-        .build()
-        .unwrap()
+
+    builder.build().unwrap()
 }

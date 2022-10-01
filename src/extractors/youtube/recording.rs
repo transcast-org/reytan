@@ -1,6 +1,6 @@
 use crate::extractors::api::{
     Extractable, Extraction, MediaFormat, MediaMetadata, MediaPlayback, RecordingExtractor,
-    URLMatch, URLMatcher,
+    URLMatcher,
 };
 use crate::extractors::youtube::common::{
     innertube_request, YOUTUBE_HOSTS_MAIN, YOUTUBE_HOSTS_SHORT,
@@ -18,7 +18,7 @@ pub struct YoutubeRE {}
 
 impl YoutubeRE {
     async fn yti_player(
-        self,
+        &self,
         http: &Client,
         id: &str,
         client: &request::Client<'_>,
@@ -36,39 +36,43 @@ impl YoutubeRE {
     }
 }
 
-#[async_trait]
 impl URLMatcher for YoutubeRE {
-    async fn match_extractor(self, url: &Url, _http: &reqwest::Client) -> Option<URLMatch> {
-        let scheme = url.scheme();
-        if scheme != "http" && scheme != "https" {
-            return None;
-        }
-        if let Some(hostname) = url.host_str() {
-            let segments: Vec<&str> = url.path_segments().unwrap_or("".split('/')).collect();
-            if YOUTUBE_HOSTS_MAIN.contains(&hostname) {
-                match segments.get(0).unwrap_or(&"") {
-                    &"watch" => {
-                        if let Some(v) = url.query_pairs().find(|pair| pair.0 == "v") {
-                            return Some(URLMatch {
-                                id: v.1.to_string(),
-                            });
-                        }
-                    }
-                    &"video" | &"shorts" => {
-                        if let Some(id) = segments.get(1) {
-                            return Some(URLMatch { id: id.to_string() });
-                        }
-                    }
-                    _ => (),
-                }
+    fn match_extractor(&self, url: &Url) -> bool {
+        Some(url)
+            .filter(|u| match u.scheme() {
+                "http" | "https" => true,
+                _ => false,
+            })
+            .filter(|u| {
+                let host = u.host_str().unwrap();
+                let first_segment = u.path_segments().unwrap().next().unwrap();
+                (YOUTUBE_HOSTS_MAIN.contains(&host)
+                    && ["watch", "video", "shorts"].contains(&first_segment))
+                    || YOUTUBE_HOSTS_SHORT.contains(&host)
+            })
+            .is_some()
+    }
+}
+
+impl YoutubeRE {
+    fn get_id(&self, url: &Url) -> String {
+        let host = url.host_str().unwrap();
+        let mut segments = url.path_segments().unwrap();
+        let first_segment = segments.next().unwrap();
+        if YOUTUBE_HOSTS_MAIN.contains(&host) {
+            if first_segment == "watch" {
+                return url
+                    .query_pairs()
+                    .find(|(k, _)| k == "v")
+                    .unwrap()
+                    .1
+                    .to_string();
+            } else {
+                return segments.next().unwrap().to_string();
             }
-            if YOUTUBE_HOSTS_SHORT.contains(&hostname) {
-                if let Some(id) = segments.get(0) {
-                    return Some(URLMatch { id: id.to_string() });
-                }
-            }
+        } else {
+            return first_segment.to_string();
         }
-        return None;
     }
 }
 
@@ -90,12 +94,13 @@ fn parse_formats(strm: StreamingData) -> Vec<MediaFormat> {
 #[async_trait]
 impl RecordingExtractor for YoutubeRE {
     async fn extract_recording(
-        self,
+        &self,
         http: &reqwest::Client,
-        id: &str,
+        url: &Url,
         _wanted: &Extractable,
     ) -> Result<Extraction> {
-        let player = self.yti_player(http, id, &ANDROID_MUSIC).await?;
+        let id = self.get_id(url);
+        let player = self.yti_player(http, &id, &ANDROID_MUSIC).await?;
         let fmts = if let Some(stream) = player.streaming_data {
             Some(parse_formats(stream))
         } else {
@@ -167,7 +172,7 @@ mod tests {
         let response = youtube
             .extract_recording(
                 &build_http(),
-                "KushW6zvazM",
+                &Url::parse("https://youtu.be/KushW6zvazM").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Extended,
                     playback: ExtractLevel::Extended,
@@ -192,55 +197,35 @@ mod tests {
         assert_eq!(audio.channels.unwrap(), 2);
     }
 
-    #[tokio::test]
-    async fn test_url_match_watch() {
+    #[test]
+    fn test_url_match_watch() {
         let youtube = YoutubeRE {};
         let url_match = youtube
-            .match_extractor(
-                &Url::parse("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap(),
-                &build_http(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(url_match.id, "dQw4w9WgXcQ");
+            .match_extractor(&Url::parse("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap());
+        assert_eq!(url_match, true);
     }
 
-    #[tokio::test]
-    async fn test_url_match_video() {
+    #[test]
+    fn test_url_match_video() {
         let youtube = YoutubeRE {};
         let url_match = youtube
-            .match_extractor(
-                &Url::parse("https://www.youtube.com/video/dQw4w9WgXcQ").unwrap(),
-                &build_http(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(url_match.id, "dQw4w9WgXcQ");
+            .match_extractor(&Url::parse("https://www.youtube.com/video/dQw4w9WgXcQ").unwrap());
+        assert_eq!(url_match, true);
     }
 
-    #[tokio::test]
-    async fn test_url_match_shorts() {
+    #[test]
+    fn test_url_match_shorts() {
         let youtube = YoutubeRE {};
         let url_match = youtube
-            .match_extractor(
-                &Url::parse("https://www.youtube.com/shorts/dQw4w9WgXcQ").unwrap(),
-                &build_http(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(url_match.id, "dQw4w9WgXcQ");
+            .match_extractor(&Url::parse("https://www.youtube.com/shorts/dQw4w9WgXcQ").unwrap());
+        assert_eq!(url_match, true);
     }
 
-    #[tokio::test]
-    async fn test_url_match_shortener() {
+    #[test]
+    fn test_url_match_shortener() {
         let youtube = YoutubeRE {};
-        let url_match = youtube
-            .match_extractor(
-                &Url::parse("https://youtu.be/dQw4w9WgXcQ").unwrap(),
-                &build_http(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(url_match.id, "dQw4w9WgXcQ");
+        let url_match =
+            youtube.match_extractor(&Url::parse("https://youtu.be/dQw4w9WgXcQ").unwrap());
+        assert_eq!(url_match, true);
     }
 }
