@@ -1,6 +1,0 @@
-test:
-  image: alpine:edge
-  before_script:
-    - apk add cargo openssl-dev build-base
-  script:
-    - cargo test

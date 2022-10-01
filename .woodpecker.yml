@@ -1,0 +1,10 @@
+pipeline:
+  test:
+    image: distroless.dev/alpine-base:latest
+    commands:
+      - |
+        echo "https://alpine.sakamoto.pl/alpine/edge/main
+        https://alpine.sakamoto.pl/alpine/edge/community" > /etc/apk/repositories
+      - apk add cargo openssl-dev build-base
+      - cargo fetch --locked
+      - cargo test
