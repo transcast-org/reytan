@@ -29,7 +29,10 @@ where
     S: Serialize,
 {
     let mut headers = header::HeaderMap::new();
-    headers.insert(header::USER_AGENT, "okhttp/4.9.3".parse()?);
+    headers.insert(
+        header::USER_AGENT,
+        client.user_agent.unwrap_or("okhttp/4.9.3").parse()?,
+    );
     headers.insert("Sec-Fetch-Mode", "navigate".parse()?);
     headers.insert(
         header::COOKIE,

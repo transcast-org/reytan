@@ -10,13 +10,15 @@ pub mod response {
             youtube::types::VideoList,
         };
 
-        #[derive(SmartDefault, Deserialize, PartialEq, Debug)]
+        #[derive(SmartDefault, Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct Format {
             /// innertube format id
             pub itag: u16,
             /// url to download - not present in web
             pub url: Option<String>,
+            /// the shit that is present in web instead of url
+            pub signature_cipher: Option<String>,
             /// bitrate
             pub bitrate: Option<u64>,
             /// average bitrate
@@ -81,7 +83,7 @@ pub mod response {
             }
         }
 
-        #[derive(Deserialize, PartialEq, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct StreamingData {
             // not present in ios responses
@@ -90,7 +92,7 @@ pub mod response {
             pub adaptive_formats: Option<Vec<Format>>,
         }
 
-        #[derive(Deserialize, PartialEq, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Default, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct PlayabilityStatus {
             pub status: String,
@@ -98,7 +100,7 @@ pub mod response {
             pub reason_title: Option<String>,
         }
 
-        #[derive(Deserialize, PartialEq, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Default, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct VideoDetails {
             pub video_id: String,
@@ -113,9 +115,11 @@ pub mod response {
             pub view_count: Option<u64>,
             pub short_description: Option<String>,
             pub keywords: Option<Vec<String>>,
+            #[serde(default)]
+            pub is_live: bool,
         }
 
-        #[derive(Deserialize, PartialEq, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct MicroformatsWrapper {
             pub player_microformat_renderer: Option<Microformats>,
@@ -123,7 +127,7 @@ pub mod response {
         }
 
         /// Microformats for web and web_* EXCEPT web_music
-        #[derive(Deserialize, PartialEq, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct Microformats {
             /// ISO 3166-1 alpha-2, uppercase
@@ -146,7 +150,7 @@ pub mod response {
         }
 
         /// Very special microformats for very special web_music
-        #[derive(Deserialize, PartialEq, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct MicroformatsMusic {
             /// ISO 3166-1 alpha-2, uppercase
@@ -166,7 +170,7 @@ pub mod response {
             pub video_details: Option<MicroformatsMusicVideoDetails>,
         }
 
-        #[derive(Deserialize, PartialEq, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct MicroformatsMusicVideoDetails {
             #[serde(deserialize_with = "deserialize_option_number_from_string")]
@@ -175,7 +179,7 @@ pub mod response {
             pub external_video_id: Option<String>,
         }
 
-        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct RunsWrapper {
             pub simple_text: Option<String>,
@@ -197,20 +201,20 @@ pub mod response {
             }
         }
 
-        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct RunsInner {
             pub text: String,
             pub navigation_endpoint: Option<NavigationEndpoint>,
         }
 
-        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct NavigationEndpoint {
             pub browse_endpoint: Option<BrowseEndpoint>,
         }
 
-        #[derive(Deserialize, PartialEq, Clone, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct BrowseEndpoint {
             pub browse_id: String,
@@ -523,7 +527,7 @@ pub mod response {
 
     use serde::Deserialize;
 
-    #[derive(Deserialize, PartialEq, Debug)]
+    #[derive(Deserialize, PartialEq, Eq, Hash, Default, Debug)]
     #[serde(rename_all = "camelCase")]
     /// `/youtubei/v1/player`
     pub struct Player {
@@ -616,6 +620,7 @@ pub mod request {
         #[default = "www.youtube.com"]
         pub host: &'a str,
         pub js_needed: bool,
+        pub user_agent: Option<&'a str>,
     }
 
     /// INNERTUBE_CLIENTS from yt-dlp: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube.py
@@ -640,6 +645,7 @@ pub mod request {
             third_party: None,
             host: "www.youtube.com",
             js_needed: false,
+            user_agent: None,
         };
         pub static ANDROID: Client = Client {
             name: "android",
@@ -657,6 +663,7 @@ pub mod request {
             third_party: None,
             host: "www.youtube.com",
             js_needed: false,
+            user_agent: None,
         };
         pub static ANDROID_EMBEDDED: Client = Client {
             name: "android_embedded",
@@ -676,6 +683,7 @@ pub mod request {
             }),
             host: "www.youtube.com",
             js_needed: false,
+            user_agent: None,
         };
         pub static ANDROID_CREATOR: Client = Client {
             name: "android_creator",
@@ -693,6 +701,7 @@ pub mod request {
             third_party: None,
             host: "www.youtube.com",
             js_needed: false,
+            user_agent: None,
         };
         pub static IOS: Client = Client {
             name: "ios",
@@ -710,6 +719,7 @@ pub mod request {
             third_party: None,
             host: "www.youtube.com",
             js_needed: false,
+            user_agent: None,
         };
         pub static IOS_EMBEDDED: Client = Client {
             name: "ios_embedded",
@@ -729,6 +739,7 @@ pub mod request {
             }),
             host: "www.youtube.com",
             js_needed: false,
+            user_agent: None,
         };
         pub static IOS_MUSIC: Client = Client {
             name: "ios_music",
@@ -746,6 +757,7 @@ pub mod request {
             third_party: None,
             host: "www.youtube.com",
             js_needed: false,
+            user_agent: None,
         };
         pub static IOS_CREATOR: Client = Client {
             name: "ios_creator",
@@ -763,6 +775,7 @@ pub mod request {
             third_party: None,
             host: "www.youtube.com",
             js_needed: false,
+            user_agent: None,
         };
         // all web formats require JS crypto handling for formats - currently not supported, but we need microformats
         pub static WEB: Client = Client {
@@ -781,6 +794,9 @@ pub mod request {
             third_party: None,
             host: "www.youtube.com",
             js_needed: true,
+            user_agent: Some(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0",
+            ),
         };
         pub static WEB_EMBEDDED: Client = Client {
             name: "web_embedded",
@@ -800,6 +816,7 @@ pub mod request {
             }),
             host: "www.youtube.com",
             js_needed: true,
+            user_agent: None,
         };
         pub static WEB_MUSIC: Client = Client {
             name: "web_music",
@@ -817,6 +834,7 @@ pub mod request {
             third_party: None,
             host: "music.youtube.com",
             js_needed: true,
+            user_agent: None,
         };
         pub static WEB_CREATOR: Client = Client {
             name: "web_creator",
@@ -834,6 +852,7 @@ pub mod request {
             third_party: None,
             host: "www.youtube.com",
             js_needed: true,
+            user_agent: None,
         };
         pub static MWEB: Client = Client {
             name: "mweb",
@@ -849,8 +868,9 @@ pub mod request {
                 utc_offset_minutes: 0,
             },
             third_party: None,
-            host: "www.youtube.com",
+            host: "m.youtube.com",
             js_needed: true,
+            user_agent: Some("Mozilla/5.0 (Linux; Android 10; LM-Q710(FGN)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.5195.136 Mobile Safari/537.36"),
         };
         pub static TV_EMBEDDED: Client = Client {
             name: "tv_embedded",
@@ -870,6 +890,7 @@ pub mod request {
             }),
             host: "www.youtube.com",
             js_needed: true,
+            user_agent: None,
         };
     }
 
