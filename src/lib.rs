@@ -8,9 +8,14 @@ pub mod extractors;
 use std::env;
 
 fn build_http() -> reqwest::Client {
-    let mut builder = reqwest::ClientBuilder::new()
-        // default, probably overriden by extractors
-        .user_agent("okhttp/4.9.3");
+    let mut headers = reqwest::header::HeaderMap::new();
+    // default, probably overriden by extractors
+    headers.append(reqwest::header::USER_AGENT, "okhttp/4.9.3".parse().unwrap());
+    headers.append(
+        reqwest::header::ACCEPT_LANGUAGE,
+        "en-US, en-GB;q=0.9, en;q=0.8".parse().unwrap(),
+    );
+    let mut builder = reqwest::ClientBuilder::new().default_headers(headers);
 
     if let Ok(proxy) = env::var("http_proxy") {
         builder = builder
