@@ -117,6 +117,8 @@ pub mod response {
             pub keywords: Option<Vec<String>>,
             #[serde(default)]
             pub is_live: bool,
+            #[serde(default)]
+            pub is_live_content: bool,
         }
 
         #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
@@ -488,6 +490,7 @@ pub mod response {
                             .watch_endpoint
                             .video_id,
                         title: cvm.compact_video_data.video_data.metadata.title,
+                        ..Default::default()
                     }),
                     playback: None,
                 }
@@ -595,13 +598,14 @@ pub mod request {
         #[serde(rename_all = "camelCase")]
         pub struct ContentPlaybackContext {
             #[default = "HTML5_PREF_WANTS"]
-            html5_preference: String,
+            pub html5_preference: String,
+            pub signature_timestamp: Option<usize>,
         }
 
         #[derive(SmartDefault, Serialize, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct PlaybackContext {
-            content_playback_context: ContentPlaybackContext,
+            pub content_playback_context: ContentPlaybackContext,
         }
     }
 

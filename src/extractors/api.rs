@@ -47,6 +47,17 @@ pub struct Extraction {
 pub struct MediaMetadata {
     pub id: String,
     pub title: String,
+    pub live_status: Option<LiveStatus>,
+}
+
+#[derive(Serialize, PartialEq, Clone, Debug)]
+pub enum LiveStatus {
+    /// Never meant as a live stream
+    NotLive,
+    /// Is a live stream that is currently ongoing
+    IsLive,
+    /// A recording of a live stream
+    WasLive,
 }
 
 #[derive(Serialize, Default, PartialEq, Clone, Debug)]
