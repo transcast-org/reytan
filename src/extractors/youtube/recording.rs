@@ -122,10 +122,10 @@ static WEB_JS_SIG_FN_NAME_RE: Lazy<Vec<Regex>> = Lazy::new(|| {
         r"\b[a-zA-Z0-9]+\s*&&\s*[a-zA-Z0-9]+\.set\([^,]+\s*,\s*encodeURIComponent\s*\(\s*(?P<sig>[a-zA-Z0-9$]+)\(",
         r"\bm=(?P<sig>[a-zA-Z0-9$]{2,})\(decodeURIComponent\(h\.s\)\)",
         r"\bc&&\(c=(?P<sig>[a-zA-Z0-9$]{2,})\(decodeURIComponent\(c\)\)",
-        r#"(?:\b|[^a-zA-Z0-9$])(?P<sig>[a-zA-Z0-9$]{2,})\s*=\s*function\(\s*a\s*\)\s*{\s*a\s*=\s*a\.split\(\s*""\s*\);[a-zA-Z0-9$]{2}\.[a-zA-Z0-9$]{2}\(a,\d+\)"#,
-        r#"(?:\b|[^a-zA-Z0-9$])(?P<sig>[a-zA-Z0-9$]{2,})\s*=\s*function\(\s*a\s*\)\s*{\s*a\s*=\s*a\.split\(\s*""\s*\)"#,
-        r#"(?P<sig>[a-zA-Z0-9$]+)\s*=\s*function\(\s*a\s*\)\s*{\s*a\s*=\s*a\.split\(\s*""\s*\)"#,
-    ].into_iter().map(Regex::new).flat_map(Result::ok).collect()
+        r#"(?:\b|[^a-zA-Z0-9$])(?P<sig>[a-zA-Z0-9$]{2,})\s*=\s*function\(\s*a\s*\)\s*\{\s*a\s*=\s*a\.split\(\s*""\s*\);[a-zA-Z0-9$]{2}\.[a-zA-Z0-9$]{2}\(a,\d+\)"#,
+        r#"(?:\b|[^a-zA-Z0-9$])(?P<sig>[a-zA-Z0-9$]{2,})\s*=\s*function\(\s*a\s*\)\s*\{\s*a\s*=\s*a\.split\(\s*""\s*\)"#,
+        r#"(?P<sig>[a-zA-Z0-9$]+)\s*=\s*function\(\s*a\s*\)\s*\{\s*a\s*=\s*a\.split\(\s*""\s*\)"#,
+    ].into_iter().map(Regex::new).map(Result::unwrap).collect()
 });
 
 static WEB_JS_NCODE_FN_INITIAL_NAME_RE: Lazy<Regex> = Lazy::new(|| {
@@ -246,26 +246,27 @@ impl YoutubeRE {
                 };
 
                 let mut url_params = QString::from(url.query().unwrap());
-                let original_n = url_params.get("n").unwrap();
-                dbg!(original_n);
-                let ncode_r = js_context
-                    .eval(format!(
-                        "ncode({})",
-                        serde_json::to_string(original_n).unwrap()
-                    ))
-                    .map_err(|e| Error::msg(e.to_string(&mut js_context).unwrap().to_string()))?
-                    .to_string(&mut js_context)
-                    .unwrap()
-                    .to_string();
-                url_params = QString::new(
-                    url_params
-                        .into_pairs()
-                        .into_iter()
-                        .filter(|(k, _)| k != "n")
-                        .collect(),
-                );
-                url_params.add_pair(("n", ncode_r));
-                url.set_query(Some(url_params.to_string().as_str()));
+                if let Some(original_n) = url_params.get("n") {
+                    dbg!(original_n);
+                    let ncode_r = js_context
+                        .eval(format!(
+                            "ncode({})",
+                            serde_json::to_string(original_n).unwrap()
+                        ))
+                        .map_err(|e| Error::msg(e.to_string(&mut js_context).unwrap().to_string()))?
+                        .to_string(&mut js_context)
+                        .unwrap()
+                        .to_string();
+                    url_params = QString::new(
+                        url_params
+                            .into_pairs()
+                            .into_iter()
+                            .filter(|(k, _)| k != "n")
+                            .collect(),
+                    );
+                    url_params.add_pair(("n", ncode_r));
+                    url.set_query(Some(url_params.to_string().as_str()));
+                }
 
                 format.url = Some(url.to_string());
             }
@@ -339,9 +340,20 @@ impl YoutubeRE {
 
         if player.playability_status.status == "OK" {
             if let Some(streaming_data) = player.streaming_data.as_mut() {
-                self.handle_sig(http, script_url, streaming_data)
+                match self
+                    .handle_sig(http, script_url, streaming_data)
                     .await
-                    .with_context(|| format!("on handling signatures for {}", client.name))?;
+                    .with_context(|| format!("on handling signatures for {}", client.name))
+                {
+                    Ok(_) => {}
+                    Err(e) => {
+                        player.streaming_data = None;
+                        player.playability_status.status = "REYTAN_FAILED_SIGNATURE".to_string();
+                        player.playability_status.reason_title =
+                            Some("Failed handling signatures".to_string());
+                        player.playability_status.reason = Some(e.to_string());
+                    }
+                }
             }
         }
 
@@ -365,9 +377,21 @@ impl YoutubeRE {
 
         if player.playability_status.status == "OK" {
             if let Some(streaming_data) = player.streaming_data.as_mut() {
-                self.handle_sig(http, script_url, streaming_data)
+                match self
+                    .handle_sig(http, script_url, streaming_data)
                     .await
-                    .with_context(|| format!("on handling signatures for {}", client.name))?;
+                    .with_context(|| format!("on handling signatures for {}", client.name))
+                {
+                    Ok(_) => {}
+                    Err(e) => {
+                        player.streaming_data = None;
+                        player.playability_status.status = "REYTAN_FAILED_SIGNATURE".to_string();
+                        player.playability_status.reason_title =
+                            Some("Failed handling signatures".to_string());
+                        player.playability_status.reason =
+                            Some(e.to_string() + ": " + &e.root_cause().to_string());
+                    }
+                }
             }
         }
 
@@ -391,6 +415,22 @@ impl YoutubeRE {
         }
     }
 
+    async fn attempt_client<'a>(
+        &self,
+        players: &mut HashSet<response::Player>,
+        attempted_clients: &mut HashSet<&'a str>,
+        http: &reqwest::Client,
+        id: &str,
+        client: &request::Client<'a>,
+    ) {
+        if attempted_clients.insert(&client.name) {
+            let result = self.extract_player(http, id, client).await;
+            if let Ok(player) = result {
+                players.insert(player);
+            }
+        }
+    }
+
     async fn get_player(
         &self,
         http: &reqwest::Client,
@@ -399,18 +439,42 @@ impl YoutubeRE {
     ) -> Result<response::Player> {
         let id = self.get_id(url);
         let mut players = HashSet::new();
-        if wanted.metadata == ExtractLevel::Extended {
-            let result = self.extract_player(http, &id, &clients::WEB).await;
-            if let Ok(player) = result {
-                players.insert(player);
-            }
-        }
-        // not an else to fetch ANDROID if fetching WEB failed
-        if players.len() == 0 {
-            let result = self.extract_player(http, &id, &clients::ANDROID).await;
-            if let Ok(player) = result {
-                players.insert(player);
-            }
+        let mut attempted_clients = HashSet::new();
+
+        self.attempt_client(
+            &mut players,
+            &mut attempted_clients,
+            http,
+            &id,
+            &match () {
+                // WEB gets more metadata at the expense of JS signatures existing
+                _ if wanted.metadata == ExtractLevel::Extended => clients::WEB,
+                // IOS hates open media standards and returns avc1/mp4a only
+                _ if wanted.playback == ExtractLevel::None => clients::IOS,
+                // simple choice
+                _ => clients::ANDROID,
+            },
+        )
+        .await;
+
+        // if the previous fetching of playback failed, try ANDROID,
+        // also ignore if the error was agegate
+        if players.len() == 0
+            || (wanted.playback != ExtractLevel::None
+                && !players.iter().all(|p| {
+                    ["OK", "LOGIN_REQUIRED"]
+                        .into_iter()
+                        .any(|s| s == p.playability_status.status)
+                }))
+        {
+            self.attempt_client(
+                &mut players,
+                &mut attempted_clients,
+                http,
+                &id,
+                &clients::ANDROID,
+            )
+            .await;
         }
 
         // TV_EMBEDDED is known to get age-gated videos without logging in: https://github.com/yt-dlp/yt-dlp/pull/3233
@@ -419,21 +483,37 @@ impl YoutubeRE {
                 .iter()
                 .any(|p| p.playability_status.status == "LOGIN_REQUIRED")
         {
-            let result = self.extract_player(http, &id, &clients::TV_EMBEDDED).await;
-            if let Ok(player) = result {
-                players.insert(player);
-            }
+            self.attempt_client(
+                &mut players,
+                &mut attempted_clients,
+                http,
+                &id,
+                &clients::TV_EMBEDDED,
+            )
+            .await;
         }
 
         // if live, iOS has unique formats: https://github.com/TeamNewPipe/NewPipeExtractor/issues/680
         if wanted.playback == ExtractLevel::Extended
             && players.iter().any(|p| p.video_details.is_live)
         {
-            let result = self.extract_player(http, &id, &clients::IOS).await;
-            if let Ok(player) = result {
-                players.insert(player);
-            }
+            self.attempt_client(
+                &mut players,
+                &mut attempted_clients,
+                http,
+                &id,
+                &clients::IOS,
+            )
+            .await;
         }
+
+        println!(
+            "{:#?}",
+            players
+                .iter()
+                .map(|p| &p.playability_status)
+                .collect::<Vec<_>>()
+        );
 
         match players.into_iter().reduce(|mut prev, cur| {
             prev.microformat = prev.microformat.or(cur.microformat);
@@ -442,41 +522,43 @@ impl YoutubeRE {
             }
             if let Some(prev_streaming_data) = prev.streaming_data.as_mut() {
                 if let Some(cur_streaming_data) = &cur.streaming_data {
-                    if let Some(prev_formats) = &prev_streaming_data.adaptive_formats {
-                        if let Some(cur_formats) = &cur_streaming_data.adaptive_formats {
-                            let mut available_formats = HashSet::new();
-                            prev_streaming_data.adaptive_formats = Some(
-                                prev_formats
-                                    .into_iter()
-                                    .chain(cur_formats)
-                                    .map(Format::clone)
-                                    .filter(|f| available_formats.insert(f.itag))
-                                    .collect(),
-                            );
-                        }
-                    } else {
+                    let mut available_formats = HashSet::new();
+
+                    let mut merge_formats =
+                        |prev_formats: &Vec<Format>, cur_formats: &Vec<Format>| {
+                            prev_formats
+                                .into_iter()
+                                .chain(cur_formats)
+                                .map(Format::clone)
+                                .filter(|f| available_formats.insert(f.itag))
+                                .collect()
+                        };
+
+                    if let Some((prev_formats, cur_formats)) = prev_streaming_data
+                        .adaptive_formats
+                        .as_ref()
+                        .zip(cur_streaming_data.adaptive_formats.as_ref())
+                    {
+                        prev_streaming_data.adaptive_formats =
+                            Some(merge_formats(prev_formats, cur_formats));
+                    } else if cur_streaming_data.adaptive_formats.is_some() {
                         prev_streaming_data.adaptive_formats =
                             cur_streaming_data.adaptive_formats.clone();
                     }
 
-                    if let Some(prev_formats) = &prev_streaming_data.formats {
-                        if let Some(cur_formats) = &cur_streaming_data.formats {
-                            let mut available_formats = HashSet::new();
-                            prev_streaming_data.formats = Some(
-                                prev_formats
-                                    .into_iter()
-                                    .chain(cur_formats)
-                                    .map(Format::clone)
-                                    .filter(|f| available_formats.insert(f.itag))
-                                    .collect(),
-                            );
-                        }
-                    } else {
+                    if let Some((prev_formats, cur_formats)) = prev_streaming_data
+                        .formats
+                        .as_ref()
+                        .zip(cur_streaming_data.formats.as_ref())
+                    {
+                        prev_streaming_data.formats =
+                            Some(merge_formats(prev_formats, cur_formats));
+                    } else if cur_streaming_data.formats.is_some() {
                         prev_streaming_data.formats = cur_streaming_data.formats.clone();
                     }
                 }
             } else {
-                prev.streaming_data = prev.streaming_data.or(cur.streaming_data);
+                prev.streaming_data = cur.streaming_data;
             }
 
             prev
@@ -667,5 +749,20 @@ mod tests {
         let url_match =
             youtube.match_extractor(&Url::parse("https://youtu.be/dQw4w9WgXcQ").unwrap());
         assert_eq!(url_match, true);
+    }
+
+    #[test]
+    fn test_regexes_compile() {
+        for re in [
+            &super::WEB_PLAYER_RE,
+            &super::WEB_JS_URL_RE,
+            &super::WEB_JS_NCODE_FN_INITIAL_NAME_RE,
+            &super::WEB_STS_RE,
+        ] {
+            re.as_str();
+        }
+        let _ = &super::WEB_JS_SIG_FN_NAME_RE
+            .iter()
+            .map(regex::Regex::as_str);
     }
 }
