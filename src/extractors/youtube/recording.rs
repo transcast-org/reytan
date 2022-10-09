@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::extractors::api::{
     ExtractLevel, Extractable, Extraction, LiveStatus, MediaFormat, MediaMetadata, MediaPlayback,
@@ -137,6 +137,63 @@ static WEB_JS_NCODE_FN_INITIAL_NAME_RE: Lazy<Regex> = Lazy::new(|| {
 
 static WEB_STS_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"[{,]"STS"\s*:\s*([0-9]{5})[,}]"#).unwrap());
+
+#[derive(PartialEq, Eq)]
+enum PlayabilityCategory {
+    /// playable, according to youtube
+    Ok,
+    /// youtube hates this client
+    AgeGate,
+    /// the video has not been published yet
+    NotYet,
+    /// youtube has a skill issue (unplayable globally, or geo gate)
+    HostSkillIssue,
+    /// that's on us
+    ClientSkillIssue,
+}
+static PLAYABILITY_STATUS_TYPE: Lazy<HashMap<String, PlayabilityCategory>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+
+    // self-explanatory
+    map.insert("OK".to_string(), PlayabilityCategory::Ok);
+
+    // "Sign in to confirm your age. This video may be inappropriate for some users."
+    map.insert("LOGIN_REQUIRED".to_string(), PlayabilityCategory::AgeGate);
+
+    map.insert(
+        "LIVE_STREAM_OFFLINE".to_string(),
+        PlayabilityCategory::NotYet,
+    );
+
+    // "We're processing this video. Check back later."
+    // "The uploader has not made this video available in your country"
+    map.insert(
+        "UNPLAYABLE".to_string(),
+        PlayabilityCategory::HostSkillIssue,
+    );
+    // "This video is private",
+    // "This video is no longer available due to a copyright claim by WMG",
+    // "This video is no longer available because the YouTube account associated with this video has been closed."
+    map.insert("ERROR".to_string(), PlayabilityCategory::HostSkillIssue);
+
+    map.insert(
+        "CONTENT_CHECK_REQUIRED".to_string(),
+        PlayabilityCategory::ClientSkillIssue,
+    );
+    // [when the user is logged in] "This video may be inappropriate for some users."
+    map.insert(
+        "AGE_CHECK_REQUIRED".to_string(),
+        PlayabilityCategory::ClientSkillIssue,
+    );
+
+    // internal reytan error
+    map.insert(
+        "REYTAN_FAILED_SIGNATURE".to_string(),
+        PlayabilityCategory::ClientSkillIssue,
+    );
+
+    map
+});
 
 impl YoutubeRE {
     async fn handle_sig(
@@ -462,9 +519,11 @@ impl YoutubeRE {
         if players.len() == 0
             || (wanted.playback != ExtractLevel::None
                 && !players.iter().all(|p| {
-                    ["OK", "LOGIN_REQUIRED"]
+                    [PlayabilityCategory::Ok, PlayabilityCategory::AgeGate]
                         .into_iter()
-                        .any(|s| s == p.playability_status.status)
+                        .any(|s| {
+                            Some(&s) == PLAYABILITY_STATUS_TYPE.get(&p.playability_status.status)
+                        })
                 }))
         {
             self.attempt_client(
@@ -479,9 +538,10 @@ impl YoutubeRE {
 
         // TV_EMBEDDED is known to get age-gated videos without logging in: https://github.com/yt-dlp/yt-dlp/pull/3233
         if wanted.playback != ExtractLevel::None
-            && players
-                .iter()
-                .any(|p| p.playability_status.status == "LOGIN_REQUIRED")
+            && players.iter().any(|p| {
+                PLAYABILITY_STATUS_TYPE.get(&p.playability_status.status)
+                    == Some(&PlayabilityCategory::AgeGate)
+            })
         {
             self.attempt_client(
                 &mut players,
