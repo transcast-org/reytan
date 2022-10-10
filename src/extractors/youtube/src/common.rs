@@ -33,10 +33,6 @@ where
         client.user_agent.unwrap_or("okhttp/4.9.3").parse()?,
     );
     headers.insert("Sec-Fetch-Mode", "navigate".parse()?);
-    headers.insert(
-        header::COOKIE,
-        "PREF=hl=en&tz=UTC; CONSENT=YES+cb.20210328-17-p0.en+FX+929".parse()?,
-    );
     headers.insert(header::ORIGIN, format!("https://{}", client.host).parse()?);
     if let Some(client_id) = client.client_id {
         headers.insert("X-Youtube-Client-Name", client_id.into());

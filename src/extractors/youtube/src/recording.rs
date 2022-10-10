@@ -33,9 +33,16 @@ impl YoutubeRE {
         &self,
         ctx: &ExtractionContext,
         id: &str,
-        client: &request::Client<'_>,
+        client_: &request::Client<'_>,
         sts: Option<usize>,
     ) -> Result<response::Player> {
+        let mut client = client_.clone();
+        let hl = &ctx
+            .locales
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "en".to_string())[0..2];
+        client.context.hl = Some(hl);
         let json = request::Player {
             video_id: id.to_string(),
             context: request::parts::Context {
@@ -51,7 +58,7 @@ impl YoutubeRE {
             ..Default::default()
         };
         println!("{:?}", json);
-        innertube_request(ctx, client, "player", json).await
+        innertube_request(ctx, &client, "player", json).await
     }
 }
 

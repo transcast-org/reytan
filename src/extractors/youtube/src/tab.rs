@@ -22,9 +22,16 @@ impl YoutubeTabLE {
         self,
         ctx: &ExtractionContext,
         id: &str,
-        client: &request::Client<'_>,
+        client_: &request::Client<'_>,
         params: Option<String>,
     ) -> Result<response::Browse> {
+        let mut client = client_.clone();
+        let hl = &ctx
+            .locales
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "en".to_string())[0..2];
+        client.context.hl = Some(hl);
         let json = request::Browse {
             browse_id: id.to_string(),
             params,
@@ -35,15 +42,22 @@ impl YoutubeTabLE {
             ..Default::default()
         };
         println!("{:?}", json);
-        innertube_request(ctx, client, "browse", json).await
+        innertube_request(ctx, &client, "browse", json).await
     }
     async fn yti_browse_cont(
         self,
         ctx: &ExtractionContext,
         id: &str,
-        client: &request::Client<'_>,
+        client_: &request::Client<'_>,
         continuation: String,
     ) -> Result<response::BrowseContinuation> {
+        let mut client = client_.clone();
+        let hl = &ctx
+            .locales
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "en".to_string())[0..2];
+        client.context.hl = Some(hl);
         let json = request::Browse {
             browse_id: id.to_string(),
             continuation: Some(continuation),
@@ -54,14 +68,21 @@ impl YoutubeTabLE {
             ..Default::default()
         };
         println!("{:?}", json);
-        innertube_request(ctx, client, "browse", json).await
+        innertube_request(ctx, &client, "browse", json).await
     }
     async fn yti_navigation_resolve(
         self,
         ctx: &ExtractionContext,
         url: &str,
-        client: &request::Client<'_>,
+        client_: &request::Client<'_>,
     ) -> Result<response::NavigationResolve> {
+        let mut client = client_.clone();
+        let hl = &ctx
+            .locales
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "en".to_string())[0..2];
+        client.context.hl = Some(hl);
         let json = request::NavigationResolve {
             url: url.to_string(),
             context: request::parts::Context {
@@ -71,7 +92,7 @@ impl YoutubeTabLE {
             ..Default::default()
         };
         println!("{:?}", json);
-        innertube_request(ctx, client, "navigation/resolve_url", json).await
+        innertube_request(ctx, &client, "navigation/resolve_url", json).await
     }
 }
 
