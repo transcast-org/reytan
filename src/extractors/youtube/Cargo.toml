@@ -6,13 +6,17 @@ description = "reytan extractor for YouTube"
 authors = ["Lauren Liberda <lauren@selfisekai.rocks>"]
 keywords = ["scraper", "youtube"]
 
+[features]
+default = ["allow_js"]
+allow_js = ["dep:boa_engine", "dep:regex", "dep:qstring"]
+
 [dependencies]
 anyhow = "1.0.53"
 async-trait = "0.1.52"
-boa_engine = "0.16.0"
+boa_engine = { version = "0.16.0", optional = true }
 futures = "^0.3"
 once_cell = "1.15.0"
-regex = "1.6.0"
+regex = { version = "1.6.0", optional = true }
 reytan_context = { path = "../../context" }
 reytan_extractor_api = { path = "../../extractor_api" }
 serde = { version = "1.0.136", features = ["derive"] }
@@ -20,5 +24,5 @@ serde-aux = "3.0.1"
 serde_json = "1.0.79"
 smart-default = "0.6.0"
 tokio = { version = "1.16.1", features = ["full"] }
-qstring = "0.7.2"
+qstring = { version = "0.7.2", optional = true }
 url = "2.2.2"

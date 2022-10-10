@@ -5,13 +5,21 @@ use super::types::request::{self, clients};
 use super::types::response;
 use super::types::response::parts::{Format, StreamingData};
 
-use anyhow::{bail, Context, Error, Result};
-use async_trait::async_trait;
+#[cfg(feature = "allow_js")]
+use anyhow::{Context, Error};
+#[cfg(feature = "allow_js")]
 use boa_engine::Context as JSContext;
-use once_cell::sync::Lazy;
+#[cfg(feature = "allow_js")]
 use qstring::QString;
+#[cfg(feature = "allow_js")]
 use regex::Regex;
-use reytan_context::reqwest::{self, header, Client};
+#[cfg(feature = "allow_js")]
+use reytan_context::reqwest::header;
+
+use anyhow::{bail, Result};
+use async_trait::async_trait;
+use once_cell::sync::Lazy;
+use reytan_context::reqwest::{self, Client};
 use reytan_extractor_api::{
     ExtractLevel, Extractable, Extraction, LiveStatus, MediaFormat, MediaMetadata, MediaPlayback,
     RecordingExtractor, URLMatcher,
@@ -102,15 +110,18 @@ fn parse_formats(strm: StreamingData) -> Vec<MediaFormat> {
     fmts
 }
 
+#[cfg(feature = "allow_js")]
 static WEB_PLAYER_RE: Lazy<Regex> =
     // excessive, leaves anything after the json
     Lazy::new(|| Regex::new(r"var ytInitialPlayerResponse\s*=\s*(\{.+);").unwrap());
 
+#[cfg(feature = "allow_js")]
 static WEB_JS_URL_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#""jsUrl"\s*:\s*"(/s/player/([a-z0-9]+)/(?:player_ias\.vflset/[^/]+|player-plasma-ias-phone-[^/.]+\.vflset)/base\.js)""#)
         .unwrap()
 });
 
+#[cfg(feature = "allow_js")]
 static WEB_JS_SIG_FN_NAME_RE: Lazy<Vec<Regex>> = Lazy::new(|| {
     [
         // from yt-dlp
@@ -124,6 +135,7 @@ static WEB_JS_SIG_FN_NAME_RE: Lazy<Vec<Regex>> = Lazy::new(|| {
     ].into_iter().map(Regex::new).map(Result::unwrap).collect()
 });
 
+#[cfg(feature = "allow_js")]
 static WEB_JS_NCODE_FN_INITIAL_NAME_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"&&\(b=a.get\("n"\)\)&&\(b=(?P<ncvar>[a-zA-Z0-9_$]{2,})(?:\[(?P<index>0)\])?\(b\)"#,
@@ -131,6 +143,7 @@ static WEB_JS_NCODE_FN_INITIAL_NAME_RE: Lazy<Regex> = Lazy::new(|| {
     .unwrap()
 });
 
+#[cfg(feature = "allow_js")]
 static WEB_STS_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"[{,]"STS"\s*:\s*([0-9]{5})[,}]"#).unwrap());
 
@@ -187,11 +200,17 @@ static PLAYABILITY_STATUS_TYPE: Lazy<HashMap<String, PlayabilityCategory>> = Laz
         "REYTAN_FAILED_SIGNATURE".to_string(),
         PlayabilityCategory::ClientSkillIssue,
     );
+    // cannot handle signatures with allow_js feature disabled
+    map.insert(
+        "REYTAN_NO_ALLOW_JS".to_string(),
+        PlayabilityCategory::ClientSkillIssue,
+    );
 
     map
 });
 
 impl YoutubeRE {
+    #[cfg(feature = "allow_js")]
     async fn handle_sig(
         &self,
         http: &reqwest::Client,
@@ -327,6 +346,7 @@ impl YoutubeRE {
 
         Ok(())
     }
+    #[cfg(feature = "allow_js")]
     async fn extract_js_sts_and_player_web(
         &self,
         http: &reqwest::Client,
@@ -380,6 +400,7 @@ impl YoutubeRE {
 
         Ok((script_url, sts, player))
     }
+    #[cfg(feature = "allow_js")]
     async fn extract_player_web(
         &self,
         http: &reqwest::Client,
@@ -412,6 +433,7 @@ impl YoutubeRE {
 
         return Ok(player);
     }
+    #[cfg(feature = "allow_js")]
     async fn extract_player_embedded(
         &self,
         http: &reqwest::Client,
@@ -451,6 +473,7 @@ impl YoutubeRE {
         return Ok(player);
     }
 
+    #[cfg(feature = "allow_js")]
     async fn extract_player(
         &self,
         http: &reqwest::Client,
@@ -466,6 +489,30 @@ impl YoutubeRE {
         } else {
             self.yti_player(http, &id, client, None).await
         }
+    }
+
+    #[cfg(not(feature = "allow_js"))]
+    async fn extract_player(
+        &self,
+        http: &reqwest::Client,
+        id: &str,
+        client: &request::Client<'_>,
+    ) -> Result<response::Player> {
+        let mut player_r = self.yti_player(http, &id, client, None).await;
+
+        // if JS is needed for handling the signatures, we cannot handle them
+        if client.js_needed {
+            if let Ok(player) = player_r.as_mut() {
+                player.streaming_data = None;
+                player.playability_status.status = "REYTAN_NO_ALLOW_JS".to_string();
+                player.playability_status.reason_title =
+                    Some("Cannot handle signatures".to_string());
+                player.playability_status.reason =
+                    Some("reytan was built without the JS interpreter".to_string());
+            }
+        }
+
+        player_r
     }
 
     async fn attempt_client<'a>(
@@ -533,7 +580,8 @@ impl YoutubeRE {
         }
 
         // TV_EMBEDDED is known to get age-gated videos without logging in: https://github.com/yt-dlp/yt-dlp/pull/3233
-        if wanted.playback != ExtractLevel::None
+        if cfg!(feature = "allow_js")
+            && wanted.playback != ExtractLevel::None
             && players.iter().any(|p| {
                 PLAYABILITY_STATUS_TYPE.get(&p.playability_status.status)
                     == Some(&PlayabilityCategory::AgeGate)
@@ -691,6 +739,8 @@ mod tests {
         assert_ne!(response.streaming_data, None, "no streaming data");
     }
 
+    // agegate can only be circumvented with JS support
+    #[cfg(feature = "allow_js")]
     #[tokio::test]
     async fn do_extract_agegate() {
         let youtube = YoutubeRE {};
@@ -807,6 +857,7 @@ mod tests {
         assert_eq!(url_match, true);
     }
 
+    #[cfg(feature = "allow_js")]
     #[test]
     fn test_regexes_compile() {
         for re in [
