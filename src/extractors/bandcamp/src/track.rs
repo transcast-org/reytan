@@ -1,15 +1,15 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use nipper::Document;
-use reqwest::header;
+use reytan_context::reqwest::{self, header};
+use reytan_extractor_api::{
+    AudioDetails, Extractable, Extraction, FormatBreed, MediaFormat, MediaMetadata, MediaPlayback,
+    RecordingExtractor, URLMatcher,
+};
 use url::Url;
 
 use super::common::{_is_bandcamp, _path_is};
 use super::types::web_fragments::DataTralbum;
-use crate::extractors::api::{
-    AudioDetails, Extractable, Extraction, FormatBreed, MediaFormat, MediaMetadata, MediaPlayback,
-    RecordingExtractor, URLMatcher,
-};
 
 pub struct BandcampRE {}
 
@@ -86,10 +86,8 @@ impl RecordingExtractor for BandcampRE {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        build_http,
-        extractors::api::{ExtractLevel, RecordingExtractor, URLMatcher},
-    };
+    use reytan_context::build_http;
+    use reytan_extractor_api::{ExtractLevel, Extractable, RecordingExtractor, URLMatcher};
     use url::Url;
 
     use super::BandcampRE;
@@ -112,7 +110,7 @@ mod tests {
                 &build_http(),
                 &Url::parse("https://miraonthewall.bandcamp.com/track/make-that-skirt-go-spinny")
                     .unwrap(),
-                &crate::extractors::api::Extractable {
+                &Extractable {
                     metadata: ExtractLevel::Basic,
                     playback: ExtractLevel::Extended,
                 },
@@ -132,7 +130,7 @@ mod tests {
             .extract_recording(
                 &build_http(),
                 &Url::parse("https://penelopescott.bandcamp.com/track/r-t-2").unwrap(),
-                &crate::extractors::api::Extractable {
+                &Extractable {
                     metadata: ExtractLevel::Basic,
                     playback: ExtractLevel::Extended,
                 },

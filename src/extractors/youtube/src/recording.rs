@@ -1,17 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::extractors::api::{
-    ExtractLevel, Extractable, Extraction, LiveStatus, MediaFormat, MediaMetadata, MediaPlayback,
-    RecordingExtractor, URLMatcher,
-};
-use crate::extractors::youtube::common::{
-    innertube_request, YOUTUBE_HOSTS_MAIN, YOUTUBE_HOSTS_SHORT,
-};
-use crate::extractors::youtube::types::response::parts::Format;
-use crate::extractors::youtube::types::{
-    request::{self, clients},
-    response::{self, parts::StreamingData},
-};
+use super::common::{innertube_request, YOUTUBE_HOSTS_MAIN, YOUTUBE_HOSTS_SHORT};
+use super::types::request::{self, clients};
+use super::types::response;
+use super::types::response::parts::{Format, StreamingData};
 
 use anyhow::{bail, Context, Error, Result};
 use async_trait::async_trait;
@@ -19,7 +11,11 @@ use boa_engine::Context as JSContext;
 use once_cell::sync::Lazy;
 use qstring::QString;
 use regex::Regex;
-use reqwest::{self, header, Client};
+use reytan_context::reqwest::{self, header, Client};
+use reytan_extractor_api::{
+    ExtractLevel, Extractable, Extraction, LiveStatus, MediaFormat, MediaMetadata, MediaPlayback,
+    RecordingExtractor, URLMatcher,
+};
 use url::Url;
 
 pub struct YoutubeRE {}
@@ -671,8 +667,8 @@ impl RecordingExtractor for YoutubeRE {
 
 #[cfg(test)]
 mod tests {
-    use crate::build_http;
-    use crate::extractors::api::{
+    use reytan_context::build_http;
+    use reytan_extractor_api::{
         ExtractLevel, Extractable, FormatBreed, LiveStatus, RecordingExtractor, URLMatcher,
     };
     use url::Url;

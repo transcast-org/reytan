@@ -7,4 +7,4 @@ pipeline:
         https://alpine.sakamoto.pl/alpine/edge/community" > /etc/apk/repositories
       - apk add cargo openssl-dev build-base
       - cargo fetch --locked
-      - cargo test
+      - cargo test --all

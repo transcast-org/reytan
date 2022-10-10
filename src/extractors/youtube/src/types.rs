@@ -2,13 +2,13 @@ use self::response::parts::Continuation;
 
 pub mod response {
     pub mod parts {
+        use reytan_extractor_api::{
+            self as api, Extraction, FormatBreed, MediaFormat, MediaMetadata,
+        };
         use serde::Deserialize;
         use serde_aux::prelude::*;
 
-        use crate::extractors::{
-            api::{self, Extraction, FormatBreed, MediaFormat, MediaMetadata},
-            youtube::types::VideoList,
-        };
+        use crate::types::VideoList;
 
         #[derive(SmartDefault, Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]

@@ -1,18 +1,18 @@
-use crate::extractors::api::{
+use anyhow::Result;
+use async_trait::async_trait;
+use reytan_context::reqwest::{self, Client};
+use reytan_extractor_api::{
     AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
     URLMatcher,
 };
-use crate::extractors::youtube::common::innertube_request;
-use crate::extractors::youtube::types::request::clients::ANDROID;
-use crate::extractors::youtube::types::{request, response};
-use anyhow::Result;
-use async_trait::async_trait;
-use reqwest::Client;
 use url::Url;
 
+use super::common::innertube_request;
 use super::common::YOUTUBE_HOSTS_MAIN;
+use super::types::request::clients::ANDROID;
 use super::types::response::parts::{ActualVideoListRenderer, Renderer};
 use super::types::VideoList;
+use super::types::{request, response};
 
 #[derive(Clone, Copy)]
 pub struct YoutubeTabLE {}
@@ -195,13 +195,9 @@ impl ListExtractor for YoutubeTabLE {
 mod tests {
     use futures::prelude::*;
     use futures::stream;
+    use reytan_context::build_http;
+    use reytan_extractor_api::{AnyExtraction, ListBreed, ListExtractor, URLMatcher};
     use url::Url;
-
-    use crate::extractors::api::URLMatcher;
-    use crate::{
-        build_http,
-        extractors::api::{AnyExtraction, ListBreed, ListExtractor},
-    };
 
     use super::YoutubeTabLE;
 

@@ -1,15 +1,15 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use nipper::Document;
-use reqwest::header;
+use reytan_context::reqwest::{self, header};
+use reytan_extractor_api::{
+    AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
+    MediaMetadata, MediaPlayback, URLMatcher,
+};
 use url::Url;
 
 use super::common::{_is_bandcamp, _path_is};
 use super::types::web_fragments::DataTralbum;
-use crate::extractors::api::{
-    AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
-    MediaMetadata, MediaPlayback, URLMatcher,
-};
 
 pub struct BandcampAlbumLE {}
 
@@ -92,10 +92,8 @@ impl ListExtractor for BandcampAlbumLE {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        build_http,
-        extractors::api::{ListBreed, ListExtractor, URLMatcher},
-    };
+    use reytan_context::build_http;
+    use reytan_extractor_api::{ListBreed, ListExtractor, URLMatcher};
     use url::Url;
 
     use super::BandcampAlbumLE;

@@ -1,6 +1,6 @@
-use crate::extractors::youtube::types::request;
+use super::types::request;
 use anyhow::Result;
-use reqwest::{header, Client};
+use reytan_context::reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 
 lazy_static! {

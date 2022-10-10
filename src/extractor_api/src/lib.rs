@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate smart_default;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::Serialize;
