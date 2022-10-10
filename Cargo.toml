@@ -1,7 +1,2 @@
 [workspace]
-members = [
-    "context",
-    "extractor_api",
-    "extractors/bandcamp",
-    "extractors/youtube",
-]
+members = ["extractor_api", "extractors/bandcamp", "extractors/youtube"]

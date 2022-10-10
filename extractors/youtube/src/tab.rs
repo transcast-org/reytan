@@ -1,9 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use reytan_context::ExtractionContext;
 use reytan_extractor_api::{
-    AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
-    URLMatcher,
+    AnyExtraction, Extraction, ExtractionContext, ListBreed, ListContinuation, ListExtraction,
+    ListExtractor, URLMatcher,
 };
 use url::Url;
 
@@ -216,8 +215,9 @@ impl ListExtractor for YoutubeTabLE {
 mod tests {
     use futures::prelude::*;
     use futures::stream;
-    use reytan_context::ExtractionContext;
-    use reytan_extractor_api::{AnyExtraction, ListBreed, ListExtractor, URLMatcher};
+    use reytan_extractor_api::{
+        AnyExtraction, ExtractionContext, ListBreed, ListExtractor, URLMatcher,
+    };
     use url::Url;
 
     use super::YoutubeTabLE;

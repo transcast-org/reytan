@@ -1,4 +1,3 @@
-pub use reqwest;
 use sys_locale::get_locale;
 
 #[derive(Clone)]

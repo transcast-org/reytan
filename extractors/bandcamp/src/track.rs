@@ -1,11 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use nipper::Document;
-use reytan_context::reqwest::header;
-use reytan_context::ExtractionContext;
+use reytan_extractor_api::reqwest::header;
 use reytan_extractor_api::{
-    AudioDetails, Extractable, Extraction, FormatBreed, MediaFormat, MediaMetadata, MediaPlayback,
-    RecordingExtractor, URLMatcher,
+    AudioDetails, Extractable, Extraction, ExtractionContext, FormatBreed, MediaFormat,
+    MediaMetadata, MediaPlayback, RecordingExtractor, URLMatcher,
 };
 use url::Url;
 
@@ -88,8 +87,9 @@ impl RecordingExtractor for BandcampRE {
 
 #[cfg(test)]
 mod tests {
-    use reytan_context::ExtractionContext;
-    use reytan_extractor_api::{ExtractLevel, Extractable, RecordingExtractor, URLMatcher};
+    use reytan_extractor_api::{
+        ExtractLevel, Extractable, ExtractionContext, RecordingExtractor, URLMatcher,
+    };
     use url::Url;
 
     use super::BandcampRE;

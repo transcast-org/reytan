@@ -1,9 +1,13 @@
 #[macro_use]
 extern crate smart_default;
 
+mod context;
+pub use context::{build_http, ExtractionContext};
+
+pub use reqwest;
+
 use anyhow::Result;
 use async_trait::async_trait;
-use reytan_context::ExtractionContext;
 use serde::Serialize;
 use url::Url;
 

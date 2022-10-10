@@ -14,8 +14,8 @@ use qstring::QString;
 #[cfg(feature = "allow_js")]
 use regex::Regex;
 #[cfg(feature = "allow_js")]
-use reytan_context::reqwest::header;
-use reytan_context::ExtractionContext;
+use reytan_extractor_api::reqwest::header;
+use reytan_extractor_api::ExtractionContext;
 
 use anyhow::{bail, Result};
 use async_trait::async_trait;
@@ -723,9 +723,9 @@ impl RecordingExtractor for YoutubeRE {
 
 #[cfg(test)]
 mod tests {
-    use reytan_context::ExtractionContext;
     use reytan_extractor_api::{
-        ExtractLevel, Extractable, FormatBreed, LiveStatus, RecordingExtractor, URLMatcher,
+        ExtractLevel, Extractable, ExtractionContext, FormatBreed, LiveStatus, RecordingExtractor,
+        URLMatcher,
     };
     use url::Url;
 
