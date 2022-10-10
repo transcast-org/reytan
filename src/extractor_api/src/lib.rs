@@ -3,6 +3,7 @@ extern crate smart_default;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use reytan_context::ExtractionContext;
 use serde::Serialize;
 use url::Url;
 
@@ -14,7 +15,7 @@ pub trait URLMatcher {
 pub trait RecordingExtractor {
     async fn extract_recording(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         url: &Url,
         wanted: &Extractable,
     ) -> Result<Extraction>;
@@ -152,14 +153,14 @@ pub trait ListExtractor {
     /// `continuation` is to be used if you're fetching the next portion (page) of the list, as returned in ListExtraction.continuation.
     async fn extract_list_initial(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         url: &Url,
     ) -> Result<ListExtraction>;
 
     /// `id` and `continuation` parameters provided by the extract_list_inital method
     async fn extract_list_continuation(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         id: &str,
         continuation: &str,
     ) -> Result<ListContinuation>;

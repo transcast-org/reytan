@@ -15,11 +15,11 @@ use qstring::QString;
 use regex::Regex;
 #[cfg(feature = "allow_js")]
 use reytan_context::reqwest::header;
+use reytan_context::ExtractionContext;
 
 use anyhow::{bail, Result};
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
-use reytan_context::reqwest::{self, Client};
 use reytan_extractor_api::{
     ExtractLevel, Extractable, Extraction, LiveStatus, MediaFormat, MediaMetadata, MediaPlayback,
     RecordingExtractor, URLMatcher,
@@ -31,7 +31,7 @@ pub struct YoutubeRE {}
 impl YoutubeRE {
     async fn yti_player(
         &self,
-        http: &Client,
+        ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
         sts: Option<usize>,
@@ -51,7 +51,7 @@ impl YoutubeRE {
             ..Default::default()
         };
         println!("{:?}", json);
-        innertube_request(http, client, "player", json).await
+        innertube_request(ctx, client, "player", json).await
     }
 }
 
@@ -213,11 +213,11 @@ impl YoutubeRE {
     #[cfg(feature = "allow_js")]
     async fn handle_sig(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         script_url: Url,
         streaming_data: &mut StreamingData,
     ) -> Result<()> {
-        let player_js = http.get(script_url).send().await?.text().await?;
+        let player_js = ctx.http.get(script_url).send().await?.text().await?;
         let sig_fn_name = WEB_JS_SIG_FN_NAME_RE
             .iter()
             .find_map(|r| r.captures(&player_js))
@@ -349,7 +349,7 @@ impl YoutubeRE {
     #[cfg(feature = "allow_js")]
     async fn extract_js_sts_and_player_web(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
     ) -> Result<(Url, Option<usize>, Option<response::Player>)> {
@@ -357,7 +357,8 @@ impl YoutubeRE {
         if let Some(user_agent) = client.user_agent {
             headers.insert(header::USER_AGENT, user_agent.parse().unwrap());
         }
-        let webpage = http
+        let webpage = ctx
+            .http
             .get(format!(
                 "https://{}/{}{id}",
                 client.host,
@@ -403,19 +404,19 @@ impl YoutubeRE {
     #[cfg(feature = "allow_js")]
     async fn extract_player_web(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
     ) -> Result<response::Player> {
         let (script_url, _, maybe_player) =
-            self.extract_js_sts_and_player_web(http, id, client).await?;
+            self.extract_js_sts_and_player_web(ctx, id, client).await?;
 
         let mut player = maybe_player.unwrap();
 
         if player.playability_status.status == "OK" {
             if let Some(streaming_data) = player.streaming_data.as_mut() {
                 match self
-                    .handle_sig(http, script_url, streaming_data)
+                    .handle_sig(ctx, script_url, streaming_data)
                     .await
                     .with_context(|| format!("on handling signatures for {}", client.name))
                 {
@@ -436,16 +437,16 @@ impl YoutubeRE {
     #[cfg(feature = "allow_js")]
     async fn extract_player_embedded(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
     ) -> Result<response::Player> {
         let (script_url, sts, maybe_player) =
-            self.extract_js_sts_and_player_web(http, id, client).await?;
+            self.extract_js_sts_and_player_web(ctx, id, client).await?;
 
         // the player on the webpage is WEB_EMBEDDED client, might not the one we want
         let mut player = if client.name != clients::WEB_EMBEDDED.name || maybe_player.is_none() {
-            self.yti_player(http, id, client, sts).await.unwrap()
+            self.yti_player(ctx, id, client, sts).await.unwrap()
         } else {
             maybe_player.unwrap()
         };
@@ -453,7 +454,7 @@ impl YoutubeRE {
         if player.playability_status.status == "OK" {
             if let Some(streaming_data) = player.streaming_data.as_mut() {
                 match self
-                    .handle_sig(http, script_url, streaming_data)
+                    .handle_sig(ctx, script_url, streaming_data)
                     .await
                     .with_context(|| format!("on handling signatures for {}", client.name))
                 {
@@ -476,18 +477,18 @@ impl YoutubeRE {
     #[cfg(feature = "allow_js")]
     async fn extract_player(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
     ) -> Result<response::Player> {
         if client.js_needed {
             if client.name.ends_with("_embedded") {
-                self.extract_player_embedded(http, &id, client).await
+                self.extract_player_embedded(ctx, &id, client).await
             } else {
-                self.extract_player_web(http, &id, client).await
+                self.extract_player_web(ctx, &id, client).await
             }
         } else {
-            self.yti_player(http, &id, client, None).await
+            self.yti_player(ctx, &id, client, None).await
         }
     }
 
@@ -519,12 +520,12 @@ impl YoutubeRE {
         &self,
         players: &mut HashSet<response::Player>,
         attempted_clients: &mut HashSet<&'a str>,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'a>,
     ) {
         if attempted_clients.insert(&client.name) {
-            let result = self.extract_player(http, id, client).await;
+            let result = self.extract_player(ctx, id, client).await;
             if let Ok(player) = result {
                 players.insert(player);
             }
@@ -533,7 +534,7 @@ impl YoutubeRE {
 
     async fn get_player(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         url: &Url,
         wanted: &Extractable,
     ) -> Result<response::Player> {
@@ -544,7 +545,7 @@ impl YoutubeRE {
         self.attempt_client(
             &mut players,
             &mut attempted_clients,
-            http,
+            ctx,
             &id,
             &match () {
                 // WEB gets more metadata at the expense of JS signatures existing
@@ -572,7 +573,7 @@ impl YoutubeRE {
             self.attempt_client(
                 &mut players,
                 &mut attempted_clients,
-                http,
+                ctx,
                 &id,
                 &clients::ANDROID,
             )
@@ -590,7 +591,7 @@ impl YoutubeRE {
             self.attempt_client(
                 &mut players,
                 &mut attempted_clients,
-                http,
+                ctx,
                 &id,
                 &clients::TV_EMBEDDED,
             )
@@ -604,7 +605,7 @@ impl YoutubeRE {
             self.attempt_client(
                 &mut players,
                 &mut attempted_clients,
-                http,
+                ctx,
                 &id,
                 &clients::IOS,
             )
@@ -677,11 +678,11 @@ impl YoutubeRE {
 impl RecordingExtractor for YoutubeRE {
     async fn extract_recording(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         url: &Url,
         wanted: &Extractable,
     ) -> Result<Extraction> {
-        let player = self.get_player(http, url, wanted).await?;
+        let player = self.get_player(ctx, url, wanted).await?;
         let fmts = if let Some(stream) = player.streaming_data {
             Some(parse_formats(stream))
         } else {
@@ -715,7 +716,7 @@ impl RecordingExtractor for YoutubeRE {
 
 #[cfg(test)]
 mod tests {
-    use reytan_context::build_http;
+    use reytan_context::ExtractionContext;
     use reytan_extractor_api::{
         ExtractLevel, Extractable, FormatBreed, LiveStatus, RecordingExtractor, URLMatcher,
     };
@@ -728,7 +729,12 @@ mod tests {
     async fn do_yti_player_protected() {
         let youtube = YoutubeRE {};
         let response = youtube
-            .yti_player(&build_http(), "KushW6zvazM", &ANDROID_MUSIC, None)
+            .yti_player(
+                &ExtractionContext::new(),
+                "KushW6zvazM",
+                &ANDROID_MUSIC,
+                None,
+            )
             .await
             .expect("yti player");
         println!("{:?}", response);
@@ -746,7 +752,7 @@ mod tests {
         let youtube = YoutubeRE {};
         let response = youtube
             .extract_recording(
-                &build_http(),
+                &ExtractionContext::new(),
                 &Url::parse("https://www.youtube.com/video/Tq92D6wQ1mg").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Basic,
@@ -778,7 +784,7 @@ mod tests {
         let youtube = YoutubeRE {};
         let response = youtube
             .extract_recording(
-                &build_http(),
+                &ExtractionContext::new(),
                 &Url::parse("https://youtu.be/KushW6zvazM").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Extended,
@@ -810,7 +816,7 @@ mod tests {
         let youtube = YoutubeRE {};
         let response = youtube
             .extract_recording(
-                &build_http(),
+                &ExtractionContext::new(),
                 &Url::parse("https://www.youtube.com/watch?v=jfKfPfyJRdk").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Extended,

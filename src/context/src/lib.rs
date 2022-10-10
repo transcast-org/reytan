@@ -1,22 +1,61 @@
 pub use reqwest;
+use sys_locale::get_locale;
 
-use std::env;
+#[derive(Clone)]
+pub struct ExtractionContext {
+    pub http: reqwest::Client,
+    pub locales: Vec<String>,
+}
 
-pub fn build_http() -> reqwest::Client {
+impl ExtractionContext {
+    pub fn new() -> ExtractionContext {
+        let locale = get_locale()
+            .filter(|l| l != "c" && l != "C")
+            .unwrap_or_else(|| "en-US".to_string());
+
+        let locales = if locale.len() > 2 {
+            vec![locale.clone(), locale[0..2].to_string()]
+        } else {
+            vec![locale]
+        };
+
+        ExtractionContext {
+            http: build_http(&locales),
+            locales,
+        }
+    }
+
+    pub fn new_with_locale(locales: Vec<String>) -> ExtractionContext {
+        ExtractionContext {
+            http: build_http(&locales),
+            locales,
+        }
+    }
+}
+
+pub fn build_http(locales: &Vec<String>) -> reqwest::Client {
     let mut headers = reqwest::header::HeaderMap::new();
     // default, probably overriden by extractors
     headers.append(reqwest::header::USER_AGENT, "okhttp/4.9.3".parse().unwrap());
     headers.append(
         reqwest::header::ACCEPT_LANGUAGE,
-        "en-US, en-GB;q=0.9, en;q=0.8".parse().unwrap(),
+        locales
+            .into_iter()
+            .enumerate()
+            .map(|(i, l)| {
+                if i != 0 {
+                    format!("{l};q={}", 1.0 - (i as f32 / 10.0))
+                } else {
+                    l.clone()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap(),
     );
-    let mut builder = reqwest::ClientBuilder::new().default_headers(headers);
-
-    if let Ok(proxy) = env::var("http_proxy") {
-        builder = builder
-            .danger_accept_invalid_certs(true)
-            .proxy(reqwest::Proxy::all(proxy).unwrap());
-    }
-
-    builder.build().unwrap()
+    reqwest::ClientBuilder::new()
+        .default_headers(headers)
+        .build()
+        .unwrap()
 }

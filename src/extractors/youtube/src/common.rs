@@ -1,7 +1,7 @@
 use super::types::request;
 use anyhow::Result;
 use once_cell::sync::Lazy;
-use reytan_context::reqwest::{header, Client};
+use reytan_context::{reqwest::header, ExtractionContext};
 use serde::{Deserialize, Serialize};
 
 pub static YOUTUBE_HOSTS_MAIN: Lazy<Vec<&str>> = Lazy::new(|| {
@@ -18,7 +18,7 @@ pub static YOUTUBE_HOSTS_MAIN: Lazy<Vec<&str>> = Lazy::new(|| {
 pub static YOUTUBE_HOSTS_SHORT: Lazy<Vec<&str>> = Lazy::new(|| vec!["youtu.be", "y2u.be"]);
 
 pub async fn innertube_request<T, S>(
-    http: &Client,
+    ctx: &ExtractionContext,
     client: &request::Client<'_>,
     endpoint: &str,
     json: S,
@@ -45,7 +45,8 @@ where
         "X-Youtube-Client-Version",
         client.context.client_version.parse()?,
     );
-    let resp = http
+    let resp = ctx
+        .http
         .post(format!(
             "https://{}/youtubei/v1/{}?key={}",
             client.host, endpoint, client.api_key

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use reytan_context::reqwest::{self, Client};
+use reytan_context::ExtractionContext;
 use reytan_extractor_api::{
     AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
     URLMatcher,
@@ -20,7 +20,7 @@ pub struct YoutubeTabLE {}
 impl YoutubeTabLE {
     async fn yti_browse(
         self,
-        http: &Client,
+        ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
         params: Option<String>,
@@ -35,11 +35,11 @@ impl YoutubeTabLE {
             ..Default::default()
         };
         println!("{:?}", json);
-        innertube_request(http, client, "browse", json).await
+        innertube_request(ctx, client, "browse", json).await
     }
     async fn yti_browse_cont(
         self,
-        http: &Client,
+        ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
         continuation: String,
@@ -54,11 +54,11 @@ impl YoutubeTabLE {
             ..Default::default()
         };
         println!("{:?}", json);
-        innertube_request(http, client, "browse", json).await
+        innertube_request(ctx, client, "browse", json).await
     }
     async fn yti_navigation_resolve(
         self,
-        http: &Client,
+        ctx: &ExtractionContext,
         url: &str,
         client: &request::Client<'_>,
     ) -> Result<response::NavigationResolve> {
@@ -71,7 +71,7 @@ impl YoutubeTabLE {
             ..Default::default()
         };
         println!("{:?}", json);
-        innertube_request(http, client, "navigation/resolve_url", json).await
+        innertube_request(ctx, client, "navigation/resolve_url", json).await
     }
 }
 
@@ -123,18 +123,18 @@ fn get_videos(renderer: Renderer) -> Option<ActualVideoListRenderer> {
 impl ListExtractor for YoutubeTabLE {
     async fn extract_list_initial(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         url: &Url,
     ) -> Result<ListExtraction> {
         // let (browse_id, params) = pseudo_id_to_id_and_params(id.to_string());
         let navigation_resolve = self
-            .yti_navigation_resolve(http, url.as_str(), &ANDROID)
+            .yti_navigation_resolve(ctx, url.as_str(), &ANDROID)
             .await
             .unwrap();
         let browse_end = navigation_resolve.endpoint.browse_endpoint.unwrap();
         let vl: VideoList<Extraction> = {
             let browse = self
-                .yti_browse(http, &browse_end.browse_id, &ANDROID, browse_end.params)
+                .yti_browse(ctx, &browse_end.browse_id, &ANDROID, browse_end.params)
                 .await?;
             println!("{:#?}", browse);
             get_videos(browse.contents.unwrap()).unwrap().into()
@@ -165,12 +165,12 @@ impl ListExtractor for YoutubeTabLE {
 
     async fn extract_list_continuation(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         browse_id: &str,
         continuation: &str,
     ) -> Result<ListContinuation> {
         let browse = self
-            .yti_browse_cont(http, browse_id, &ANDROID, continuation.to_string())
+            .yti_browse_cont(ctx, browse_id, &ANDROID, continuation.to_string())
             .await?;
         println!("{:#?}", browse);
         let pvlr: VideoList<Extraction> = browse.continuation_contents.unwrap().into();
@@ -195,7 +195,7 @@ impl ListExtractor for YoutubeTabLE {
 mod tests {
     use futures::prelude::*;
     use futures::stream;
-    use reytan_context::build_http;
+    use reytan_context::ExtractionContext;
     use reytan_extractor_api::{AnyExtraction, ListBreed, ListExtractor, URLMatcher};
     use url::Url;
 
@@ -206,15 +206,15 @@ mod tests {
         let url =
             Url::parse("https://www.youtube.com/playlist?list=PLpTn8onHfnD2QpCHU-llSG9hbQUwKIVFr")
                 .unwrap();
-        let http = build_http();
+        let ctx = ExtractionContext::new();
         let ytt = YoutubeTabLE {};
-        let initial = ytt.extract_list_initial(&http, &url).await.unwrap();
+        let initial = ytt.extract_list_initial(&ctx, &url).await.unwrap();
         println!("{:#?}", initial);
         assert_eq!(initial.id, "VLPLpTn8onHfnD2QpCHU-llSG9hbQUwKIVFr");
         assert_eq!(initial.breed, ListBreed::Playlist);
         assert_eq!(initial.is_endless, false);
         let stream = stream::unfold(initial.continuation.clone(), |state| {
-            let local = http.clone();
+            let local = ctx.clone();
             let init_id = initial.id.clone();
             async move {
                 if let Some(conti_token) = state {
@@ -253,7 +253,7 @@ mod tests {
 
     #[tokio::test]
     async fn do_extract_youtube_channel() {
-        let http = build_http();
+        let http = ExtractionContext::new();
         let ytt = YoutubeTabLE {};
         let url = &Url::parse("https://www.youtube.com/c/Astrophysicsynth/videos").unwrap();
         let mtch = ytt.match_extractor(url);

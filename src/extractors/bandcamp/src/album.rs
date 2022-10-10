@@ -1,7 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use nipper::Document;
-use reytan_context::reqwest::{self, header};
+use reytan_context::reqwest::header;
+use reytan_context::ExtractionContext;
 use reytan_extractor_api::{
     AnyExtraction, Extraction, ListBreed, ListContinuation, ListExtraction, ListExtractor,
     MediaMetadata, MediaPlayback, URLMatcher,
@@ -31,10 +32,11 @@ impl URLMatcher for BandcampAlbumLE {
 impl ListExtractor for BandcampAlbumLE {
     async fn extract_list_initial(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         url: &Url,
     ) -> Result<ListExtraction> {
-        let webpage = http
+        let webpage = ctx
+            .http
             .get(url.clone())
             .header(
                 header::USER_AGENT,
@@ -82,7 +84,7 @@ impl ListExtractor for BandcampAlbumLE {
 
     async fn extract_list_continuation(
         &self,
-        _http: &reqwest::Client,
+        _ctx: &ExtractionContext,
         _id: &str,
         _continuation: &str,
     ) -> Result<ListContinuation> {
@@ -92,7 +94,7 @@ impl ListExtractor for BandcampAlbumLE {
 
 #[cfg(test)]
 mod tests {
-    use reytan_context::build_http;
+    use reytan_context::ExtractionContext;
     use reytan_extractor_api::{ListBreed, ListExtractor, URLMatcher};
     use url::Url;
 
@@ -115,7 +117,7 @@ mod tests {
         let bandcamp = BandcampAlbumLE {};
         let album = bandcamp
             .extract_list_initial(
-                &build_http(),
+                &ExtractionContext::new(),
                 &Url::parse("https://penelopescott.bandcamp.com/album/public-void").unwrap(),
             )
             .await

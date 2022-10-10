@@ -1,7 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use nipper::Document;
-use reytan_context::reqwest::{self, header};
+use reytan_context::reqwest::header;
+use reytan_context::ExtractionContext;
 use reytan_extractor_api::{
     AudioDetails, Extractable, Extraction, FormatBreed, MediaFormat, MediaMetadata, MediaPlayback,
     RecordingExtractor, URLMatcher,
@@ -31,11 +32,12 @@ impl URLMatcher for BandcampRE {
 impl RecordingExtractor for BandcampRE {
     async fn extract_recording(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         url: &Url,
         _wanted: &Extractable,
     ) -> Result<Extraction> {
-        let webpage = http
+        let webpage = ctx
+            .http
             .get(url.clone())
             .header(
                 header::USER_AGENT,
@@ -86,7 +88,7 @@ impl RecordingExtractor for BandcampRE {
 
 #[cfg(test)]
 mod tests {
-    use reytan_context::build_http;
+    use reytan_context::ExtractionContext;
     use reytan_extractor_api::{ExtractLevel, Extractable, RecordingExtractor, URLMatcher};
     use url::Url;
 
@@ -107,7 +109,7 @@ mod tests {
         let bandcamp = BandcampRE {};
         let recording = bandcamp
             .extract_recording(
-                &build_http(),
+                &ExtractionContext::new(),
                 &Url::parse("https://miraonthewall.bandcamp.com/track/make-that-skirt-go-spinny")
                     .unwrap(),
                 &Extractable {
@@ -128,7 +130,7 @@ mod tests {
         let bandcamp = BandcampRE {};
         let recording = bandcamp
             .extract_recording(
-                &build_http(),
+                &ExtractionContext::new(),
                 &Url::parse("https://penelopescott.bandcamp.com/track/r-t-2").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Basic,
