@@ -1,22 +1,21 @@
 use super::types::request;
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use reytan_context::reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 
-lazy_static! {
-    pub static ref YOUTUBE_HOSTS_MAIN: [&'static str; 6] = [
+pub static YOUTUBE_HOSTS_MAIN: Lazy<Vec<&str>> = Lazy::new(|| {
+    vec![
         "youtube.com",
         "www.youtube.com",
         "m.youtube.com",
         "music.youtube.com",
         "youtubekids.com",
         "www.youtubekids.com",
-    ];
-}
+    ]
+});
 
-lazy_static! {
-    pub static ref YOUTUBE_HOSTS_SHORT: [&'static str; 2] = ["youtu.be", "y2u.be"];
-}
+pub static YOUTUBE_HOSTS_SHORT: Lazy<Vec<&str>> = Lazy::new(|| vec!["youtu.be", "y2u.be"]);
 
 pub async fn innertube_request<T, S>(
     http: &Client,
