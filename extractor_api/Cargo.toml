@@ -3,6 +3,7 @@ name = "reytan_extractor_api"
 version = "0.1.0"
 edition = "2021"
 description = "reytan extractor traits and structs"
+license = "Apache-2.0"
 authors = ["Lauren Liberda <lauren@selfisekai.rocks>"]
 
 [dependencies]
