@@ -1,6 +1,6 @@
 use super::types::request;
-use anyhow::Result;
 use once_cell::sync::Lazy;
+use reytan_extractor_api::anyhow::Result;
 use reytan_extractor_api::{reqwest::header, ExtractionContext};
 use serde::{Deserialize, Serialize};
 

@@ -8,12 +8,9 @@ authors = ["Lauren Liberda <lauren@selfisekai.rocks>"]
 keywords = ["scraper", "bandcamp"]
 
 [dependencies]
-anyhow = "1.0.53"
-async-trait = "0.1.52"
 nipper = "0.1.9"
 reytan_extractor_api = { path = "../../extractor_api" }
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.79"
 smart-default = "0.6.0"
 tokio = { version = "1.16.1", features = ["full"] }
-url = "2.2.2"

@@ -6,10 +6,12 @@ pub use context::{build_http, ExtractionContext};
 
 pub mod cache;
 
+pub use anyhow;
+pub use async_trait::async_trait;
 pub use reqwest;
+pub use url;
 
 use anyhow::Result;
-use async_trait::async_trait;
 use serde::Serialize;
 use url::Url;
 

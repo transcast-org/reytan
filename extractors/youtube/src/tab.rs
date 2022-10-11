@@ -1,10 +1,10 @@
-use anyhow::Result;
-use async_trait::async_trait;
+use reytan_extractor_api::anyhow::Result;
+use reytan_extractor_api::async_trait;
+use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
     AnyExtraction, Extraction, ExtractionContext, ListBreed, ListContinuation, ListExtraction,
     ListExtractor, URLMatcher,
 };
-use url::Url;
 
 use super::common::innertube_request;
 use super::common::YOUTUBE_HOSTS_MAIN;
@@ -215,10 +215,10 @@ impl ListExtractor for YoutubeTabLE {
 mod tests {
     use futures::prelude::*;
     use futures::stream;
+    use reytan_extractor_api::url::Url;
     use reytan_extractor_api::{
         AnyExtraction, ExtractionContext, ListBreed, ListExtractor, URLMatcher,
     };
-    use url::Url;
 
     use super::YoutubeTabLE;
 

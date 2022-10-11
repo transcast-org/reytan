@@ -6,24 +6,24 @@ use super::types::response;
 use super::types::response::parts::{Format, StreamingData};
 
 #[cfg(feature = "allow_js")]
-use anyhow::{Context, Error};
-#[cfg(feature = "allow_js")]
 use boa_engine::Context as JSContext;
 #[cfg(feature = "allow_js")]
 use qstring::QString;
 #[cfg(feature = "allow_js")]
 use regex::Regex;
 #[cfg(feature = "allow_js")]
+use reytan_extractor_api::anyhow::{Context, Error};
+#[cfg(feature = "allow_js")]
 use reytan_extractor_api::reqwest::header;
 
-use anyhow::{bail, Result};
-use async_trait::async_trait;
 use once_cell::sync::Lazy;
+use reytan_extractor_api::anyhow::{bail, Result};
+use reytan_extractor_api::async_trait;
+use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
     ExtractLevel, Extractable, Extraction, ExtractionContext, LiveStatus, MediaFormat,
     MediaMetadata, MediaPlayback, RecordingExtractor, URLMatcher,
 };
-use url::Url;
 
 pub struct YoutubeRE {}
 
@@ -410,7 +410,7 @@ impl YoutubeRE {
         let script_match = WEB_JS_URL_RE.captures(&webpage).unwrap();
         let script_path = script_match.get(1).unwrap().as_str();
         let script_hash = script_match.get(2).unwrap().as_str();
-        let script_url = url::Url::join(
+        let script_url = Url::join(
             &Url::parse(&format!("https://{}/", client.host)).unwrap(),
             script_path,
         )
@@ -746,11 +746,11 @@ impl RecordingExtractor for YoutubeRE {
 
 #[cfg(test)]
 mod tests {
+    use reytan_extractor_api::url::Url;
     use reytan_extractor_api::{
         ExtractLevel, Extractable, ExtractionContext, FormatBreed, LiveStatus, RecordingExtractor,
         URLMatcher,
     };
-    use url::Url;
 
     use super::super::types::request::clients::ANDROID_MUSIC;
     use super::YoutubeRE;

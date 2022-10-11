@@ -1,4 +1,4 @@
-use url::Url;
+use reytan_extractor_api::url::Url;
 
 pub fn _path_is(url: &&Url, entity_name: &str) -> bool {
     url.path_segments().map(|s| s.clone().next()).flatten() == Some(entity_name)
