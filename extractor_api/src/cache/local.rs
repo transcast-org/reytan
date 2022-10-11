@@ -27,6 +27,20 @@ impl MapAPI for LocalCache {
                 .join("reytan"),
         }
     }
+    #[cfg(target_os = "windows")]
+    fn new() -> Self {
+        LocalCache {
+            base_location: PathBuf::from(std::env::var("LOCALAPPDATA").unwrap())
+                .join("reytan\\cache"),
+        }
+    }
+    #[cfg(target_os = "macos")]
+    fn new() -> Self {
+        LocalCache {
+            base_location: PathBuf::from(std::env::var("HOME").unwrap())
+                .join("Library/Caches/reytan"),
+        }
+    }
 
     async fn get(&self, pool: &str, key: &str) -> Result<Option<Vec<u8>>> {
         match fs::read(self.base_location.join(pool).join(key)) {
