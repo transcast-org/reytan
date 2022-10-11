@@ -15,14 +15,13 @@ use qstring::QString;
 use regex::Regex;
 #[cfg(feature = "allow_js")]
 use reytan_extractor_api::reqwest::header;
-use reytan_extractor_api::ExtractionContext;
 
 use anyhow::{bail, Result};
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use reytan_extractor_api::{
-    ExtractLevel, Extractable, Extraction, LiveStatus, MediaFormat, MediaMetadata, MediaPlayback,
-    RecordingExtractor, URLMatcher,
+    ExtractLevel, Extractable, Extraction, ExtractionContext, LiveStatus, MediaFormat,
+    MediaMetadata, MediaPlayback, RecordingExtractor, URLMatcher,
 };
 use url::Url;
 
@@ -216,14 +215,24 @@ static PLAYABILITY_STATUS_TYPE: Lazy<HashMap<String, PlayabilityCategory>> = Laz
     map
 });
 
+#[cfg(feature = "allow_js")]
+static WEB_JS_FUNCTIONS_POOL: &'static str = "youtube_js_player_fns";
+
 impl YoutubeRE {
     #[cfg(feature = "allow_js")]
-    async fn handle_sig(
+    async fn get_js_functions(
         &self,
         ctx: &ExtractionContext,
-        script_url: Url,
-        streaming_data: &mut StreamingData,
-    ) -> Result<()> {
+        (script_url, script_hash): (Url, String),
+    ) -> Result<String> {
+        if let Ok(Some(functions)) = ctx
+            .cache
+            .get::<String>(WEB_JS_FUNCTIONS_POOL, &script_hash)
+            .await
+        {
+            return Ok(functions);
+        }
+
         let player_js = ctx.http.get(script_url).send().await?.text().await?;
         let sig_fn_name = WEB_JS_SIG_FN_NAME_RE
             .iter()
@@ -280,6 +289,23 @@ impl YoutubeRE {
             "
         );
         println!("{}", &js_payload);
+
+        ctx.cache
+            .set(WEB_JS_FUNCTIONS_POOL, &script_hash, &js_payload)
+            .await?;
+
+        Ok(js_payload)
+    }
+
+    #[cfg(feature = "allow_js")]
+    async fn handle_sig(
+        &self,
+        ctx: &ExtractionContext,
+        script_def: (Url, String),
+        streaming_data: &mut StreamingData,
+    ) -> Result<()> {
+        let js_payload = self.get_js_functions(ctx, script_def).await?;
+
         let mut js_context = JSContext::default();
         js_context
             .eval(js_payload)
@@ -359,7 +385,7 @@ impl YoutubeRE {
         ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
-    ) -> Result<(Url, Option<usize>, Option<response::Player>)> {
+    ) -> Result<((Url, String), Option<usize>, Option<response::Player>)> {
         let mut headers = header::HeaderMap::new();
         if let Some(user_agent) = client.user_agent {
             headers.insert(header::USER_AGENT, user_agent.parse().unwrap());
@@ -381,12 +407,9 @@ impl YoutubeRE {
             .text()
             .await?;
 
-        let script_path = WEB_JS_URL_RE
-            .captures(&webpage)
-            .unwrap()
-            .get(1)
-            .unwrap()
-            .as_str();
+        let script_match = WEB_JS_URL_RE.captures(&webpage).unwrap();
+        let script_path = script_match.get(1).unwrap().as_str();
+        let script_hash = script_match.get(2).unwrap().as_str();
         let script_url = url::Url::join(
             &Url::parse(&format!("https://{}/", client.host)).unwrap(),
             script_path,
@@ -406,7 +429,7 @@ impl YoutubeRE {
                     .unwrap()
             });
 
-        Ok((script_url, sts, player))
+        Ok(((script_url, script_hash.to_string()), sts, player))
     }
     #[cfg(feature = "allow_js")]
     async fn extract_player_web(

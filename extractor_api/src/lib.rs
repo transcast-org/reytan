@@ -4,6 +4,8 @@ extern crate smart_default;
 mod context;
 pub use context::{build_http, ExtractionContext};
 
+pub mod cache;
+
 pub use reqwest;
 
 use anyhow::Result;
