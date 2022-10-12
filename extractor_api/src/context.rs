@@ -1,7 +1,7 @@
 use sys_locale::get_locale;
 
 use crate::cache::{
-    api::{CacheAPI, MapAPI},
+    api::{CacheAPI, CacheImplementation, MapAPI},
     local::LocalCache,
 };
 
@@ -9,7 +9,7 @@ use crate::cache::{
 pub struct ExtractionContext {
     pub http: reqwest::Client,
     pub locales: Vec<String>,
-    pub cache: CacheAPI<LocalCache>,
+    pub cache: CacheAPI,
 }
 
 impl ExtractionContext {
@@ -27,7 +27,7 @@ impl ExtractionContext {
         ExtractionContext {
             http: build_http(&locales),
             locales,
-            cache: CacheAPI::new(LocalCache::new()),
+            cache: CacheAPI::new(CacheImplementation::Local(LocalCache::new())),
         }
     }
 
@@ -35,7 +35,7 @@ impl ExtractionContext {
         ExtractionContext {
             http: build_http(&locales),
             locales,
-            cache: CacheAPI::new(LocalCache::new()),
+            cache: CacheAPI::new(CacheImplementation::Local(LocalCache::new())),
         }
     }
 }

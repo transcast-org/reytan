@@ -2,6 +2,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+use super::{local::LocalCache, stub::StubCache};
+
 #[async_trait]
 /// Trait for storing data for later re-use by the extractors.
 /// The trait does not deserialize or serialize stuff, this is done
@@ -24,19 +26,25 @@ pub trait MapAPI {
 }
 
 #[derive(Clone)]
-pub struct CacheAPI<M: MapAPI> {
-    map: M,
+pub enum CacheImplementation {
+    Local(LocalCache),
+    Stub(StubCache),
 }
-impl<M: MapAPI> CacheAPI<M> {
-    pub fn new(map: M) -> Self {
+
+#[derive(Clone)]
+pub struct CacheAPI {
+    map: CacheImplementation,
+}
+impl CacheAPI {
+    pub fn new(map: CacheImplementation) -> CacheAPI {
         CacheAPI { map }
     }
 
-    pub async fn get<T>(self: &Self, pool: &str, key: &str) -> Result<Option<T>>
+    fn deserialize<T>(self: &Self, getr: Result<Option<Vec<u8>>>) -> Result<Option<T>>
     where
         T: for<'a> Deserialize<'a>,
     {
-        match self.map.get(pool, key).await {
+        match getr {
             Ok(Some(b)) => serde_json::from_slice(&b)
                 .map(Some)
                 .map_err(anyhow::Error::from),
@@ -45,10 +53,30 @@ impl<M: MapAPI> CacheAPI<M> {
         }
     }
 
+    pub async fn get<T>(self: &Self, pool: &str, key: &str) -> Result<Option<T>>
+    where
+        T: for<'a> Deserialize<'a>,
+    {
+        match &self.map {
+            CacheImplementation::Local(c) => self.deserialize(c.get(pool, key).await),
+            CacheImplementation::Stub(c) => self.deserialize(c.get(pool, key).await),
+        }
+    }
+
+    fn serialize<T>(self: &Self, data: &T) -> Result<Vec<u8>>
+    where
+        T: Serialize,
+    {
+        serde_json::to_vec(data).map_err(anyhow::Error::from)
+    }
+
     pub async fn set<T>(self: &Self, pool: &str, key: &str, data: &T) -> Result<()>
     where
         T: Serialize,
     {
-        self.map.set(pool, key, &serde_json::to_vec(data)?).await
+        match &self.map {
+            CacheImplementation::Local(c) => c.set(pool, key, &self.serialize(data)?).await,
+            CacheImplementation::Stub(c) => c.set(pool, key, &self.serialize(data)?).await,
+        }
     }
 }
