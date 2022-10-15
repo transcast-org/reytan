@@ -2,6 +2,7 @@ use self::response::parts::Continuation;
 
 pub mod response {
     pub mod parts {
+        use api::MediaFormatURL;
         use reytan_extractor_api::{
             self as api, Extraction, FormatBreed, MediaFormat, MediaMetadata,
         };
@@ -55,7 +56,7 @@ pub mod response {
                 };
                 MediaFormat {
                     id: fmt.itag.to_string(),
-                    url: fmt.url.unwrap(),
+                    url: Box::new(MediaFormatURL::HTTP(fmt.url.unwrap().parse().unwrap())),
                     video_details: if breed == FormatBreed::Video
                         || breed == FormatBreed::AudioVideo
                     {
@@ -78,7 +79,6 @@ pub mod response {
                         None
                     },
                     breed,
-                    ..Default::default()
                 }
             }
         }

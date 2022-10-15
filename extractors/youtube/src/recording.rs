@@ -748,8 +748,8 @@ impl RecordingExtractor for YoutubeRE {
 mod tests {
     use reytan_extractor_api::url::Url;
     use reytan_extractor_api::{
-        ExtractLevel, Extractable, ExtractionContext, FormatBreed, LiveStatus, RecordingExtractor,
-        URLMatcher,
+        ExtractLevel, Extractable, ExtractionContext, FormatBreed, LiveStatus, MediaFormatURL,
+        RecordingExtractor, URLMatcher,
     };
 
     use super::super::types::request::clients::ANDROID_MUSIC;
@@ -792,7 +792,6 @@ mod tests {
             )
             .await
             .expect("extracted player");
-        println!("{:?}", response);
         let meta = response.metadata.expect("metadata");
         assert_eq!(meta.title, "[MMD] Adios - EVERGLOW [+Motion DL]");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
@@ -824,7 +823,6 @@ mod tests {
             )
             .await
             .expect("player response");
-        println!("{:?}", response);
         let meta = response.metadata.expect("metadata");
         assert_eq!(meta.title, "DECO*27 - ゴーストルール feat. 初音ミク");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
@@ -839,6 +837,10 @@ mod tests {
         assert_eq!(f251.video_details, None);
         let audio = f251.audio_details.expect("251 audio details");
         assert_eq!(audio.channels.unwrap(), 2);
+        match f251.url.get().await.unwrap() {
+            MediaFormatURL::HTTP(u) => assert!(u.host_str().unwrap().ends_with(".googlevideo.com")),
+            _ => panic!("251 should return HTTP URL"),
+        }
     }
 
     #[tokio::test]

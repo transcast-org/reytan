@@ -49,7 +49,7 @@ pub enum ExtractLevel {
     Extended,
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default)]
 pub struct Extraction {
     pub metadata: Option<MediaMetadata>,
     pub playback: Option<MediaPlayback>,
@@ -72,18 +72,35 @@ pub enum LiveStatus {
     WasLive,
 }
 
-#[derive(Serialize, Default, PartialEq, Clone, Debug)]
+#[derive(Default)]
 pub struct MediaPlayback {
     pub formats: Vec<MediaFormat>,
 }
 
-#[derive(Serialize, SmartDefault, PartialEq, Clone, Debug)]
 pub struct MediaFormat {
     pub id: String,
     pub breed: FormatBreed,
-    pub url: String,
+    pub url: Box<dyn MediaFormatPointer>,
     pub video_details: Option<VideoDetails>,
     pub audio_details: Option<AudioDetails>,
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum MediaFormatURL {
+    HTTP(Url),
+    HLS(Url),
+}
+
+#[async_trait]
+pub trait MediaFormatPointer {
+    async fn get(&self) -> Result<MediaFormatURL>;
+}
+
+#[async_trait]
+impl MediaFormatPointer for MediaFormatURL {
+    async fn get(&self) -> Result<MediaFormatURL> {
+        Ok(self.clone())
+    }
 }
 
 /// Format type
@@ -125,14 +142,13 @@ pub enum ListBreed {
 ///     * volumes of an album
 ///     * channel's playlists
 ///     * artist's albums (and the songs)
-#[derive(Debug)]
 pub enum AnyExtraction {
     Recording(Extraction),
     List(ListExtraction),
 }
 
 /// What the list extractor spits out at you.
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct ListExtraction {
     pub id: String,
     pub breed: ListBreed,
@@ -145,7 +161,7 @@ pub struct ListExtraction {
 }
 
 /// What the list extractor spits out at you (again, if you want more)
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct ListContinuation {
     pub id: String,
     pub entries: Option<Result<Vec<AnyExtraction>>>,

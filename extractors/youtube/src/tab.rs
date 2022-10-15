@@ -230,7 +230,6 @@ mod tests {
         let ctx = ExtractionContext::new();
         let ytt = YoutubeTabLE {};
         let initial = ytt.extract_list_initial(&ctx, &url).await.unwrap();
-        println!("{:#?}", initial);
         assert_eq!(initial.id, "VLPLpTn8onHfnD2QpCHU-llSG9hbQUwKIVFr");
         assert_eq!(initial.breed, ListBreed::Playlist);
         assert_eq!(initial.is_endless, false);
@@ -280,7 +279,6 @@ mod tests {
         let mtch = ytt.match_extractor(url);
         assert_eq!(mtch, true);
         let initial = ytt.extract_list_initial(&http, &url).await.unwrap();
-        println!("{:#?}", initial);
         assert_eq!(initial.id, "UCWSC_-y9QsDmACXRY3rvtsQ");
         assert_eq!(initial.breed, ListBreed::Channel);
         assert_eq!(initial.is_endless, false);
