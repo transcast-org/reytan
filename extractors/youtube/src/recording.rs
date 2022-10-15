@@ -113,6 +113,11 @@ fn parse_formats(strm: StreamingData) -> Vec<MediaFormat> {
             fmts.push(fmt.into());
         }
     }
+    if let Some(formats) = strm.hls_formats {
+        for fmt in formats {
+            fmts.push(fmt.into());
+        }
+    }
     fmts
 }
 
@@ -690,6 +695,17 @@ impl YoutubeRE {
                             Some(merge_formats(prev_formats, cur_formats));
                     } else if cur_streaming_data.formats.is_some() {
                         prev_streaming_data.formats = cur_streaming_data.formats.clone();
+                    }
+
+                    if let Some((prev_formats, cur_formats)) = prev_streaming_data
+                        .hls_formats
+                        .as_ref()
+                        .zip(cur_streaming_data.hls_formats.as_ref())
+                    {
+                        prev_streaming_data.formats =
+                            Some(merge_formats(prev_formats, cur_formats));
+                    } else if cur_streaming_data.formats.is_some() {
+                        prev_streaming_data.hls_formats = cur_streaming_data.hls_formats.clone();
                     }
                 }
             } else {

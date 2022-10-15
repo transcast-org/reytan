@@ -46,17 +46,30 @@ pub mod response {
 
         impl From<Format> for MediaFormat {
             fn from(fmt: Format) -> MediaFormat {
+                let is_hls = fmt.mime_type.starts_with("application/x-mpegURL");
                 let breed = if fmt.mime_type.starts_with("audio/") {
                     FormatBreed::Audio
                 // multiple codecs - "video/3gpp; codecs=\"mp4v.20.3, mp4a.40.2\""
                 } else if fmt.mime_type.contains(", ") {
                     FormatBreed::AudioVideo
+                } else if is_hls {
+                    // not clearly indicated. we can only assume by heuristics (as it is)
+                    // or by the indicated codecs. note: A/V covered by the previous check
+                    if fmt.audio_channels.is_some() {
+                        FormatBreed::Audio
+                    } else {
+                        FormatBreed::Video
+                    }
                 } else {
                     FormatBreed::Video
                 };
                 MediaFormat {
                     id: fmt.itag.to_string(),
-                    url: Box::new(MediaFormatURL::HTTP(fmt.url.unwrap().parse().unwrap())),
+                    url: Box::new(if is_hls {
+                        MediaFormatURL::HLS(fmt.url.unwrap().parse().unwrap())
+                    } else {
+                        MediaFormatURL::HTTP(fmt.url.unwrap().parse().unwrap())
+                    }),
                     video_details: if breed == FormatBreed::Video
                         || breed == FormatBreed::AudioVideo
                     {
@@ -90,6 +103,8 @@ pub mod response {
             pub formats: Option<Vec<Format>>,
             // not present in ios_creator responses
             pub adaptive_formats: Option<Vec<Format>>,
+            // present in ios responses on livestreams
+            pub hls_formats: Option<Vec<Format>>,
         }
 
         #[derive(Deserialize, PartialEq, Eq, Hash, Default, Debug)]
