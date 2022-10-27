@@ -6,7 +6,7 @@ use reytan_extractor_api::anyhow::{bail, Result};
 use reytan_extractor_api::reqwest::Response;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::ExtractionContext;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 pub static SOUNDCLOUD_USER_DOMAINS: Lazy<Vec<&'static str>> =
     Lazy::new(|| vec!["soundcloud.com", "www.soundcloud.com", "m.soundcloud.com"]);
@@ -60,6 +60,7 @@ async fn get_client_id(ctx: &ExtractionContext, force: bool) -> Result<String> {
     return Ok(cid);
 }
 
+/*
 async fn do_post_api_request<Q>(
     ctx: &ExtractionContext,
     path: &str,
@@ -80,6 +81,7 @@ where
         .send()
         .await?)
 }
+*/
 
 async fn do_get_api_request(
     ctx: &ExtractionContext,
@@ -93,6 +95,7 @@ async fn do_get_api_request(
     Ok(ctx.http.get(url).send().await?)
 }
 
+/*
 pub async fn post_api_request<Q, A>(
     ctx: &ExtractionContext,
     path: &str,
@@ -110,6 +113,7 @@ where
     }
     Ok(res.json().await?)
 }
+*/
 
 pub async fn get_api_request<A>(
     ctx: &ExtractionContext,

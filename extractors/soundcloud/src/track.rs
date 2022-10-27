@@ -2,13 +2,20 @@ use qstring::QString;
 use reytan_extractor_api::anyhow::Result;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
-    async_trait, Extractable, Extraction, ExtractionContext, RecordingExtractor, URLMatcher,
+    async_trait, Extractable, Extraction, ExtractionContext, NewExtractor, RecordingExtractor,
+    URLMatcher,
 };
 
 use crate::common::{get_api_request, SOUNDCLOUD_API_DOMAINS, SOUNDCLOUD_USER_DOMAINS};
 use crate::types::Track;
 
 pub struct SoundcloudRE {}
+
+impl NewExtractor for SoundcloudRE {
+    fn new() -> Self {
+        SoundcloudRE {}
+    }
+}
 
 impl SoundcloudRE {
     fn do_match(&self, url: &Url) -> (bool, Option<(String, Option<String>)>) {

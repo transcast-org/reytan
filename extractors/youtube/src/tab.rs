@@ -1,9 +1,8 @@
 use reytan_extractor_api::anyhow::Result;
-use reytan_extractor_api::async_trait;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
-    AnyExtraction, Extraction, ExtractionContext, ListBreed, ListContinuation, ListExtraction,
-    ListExtractor, URLMatcher,
+    async_trait, AnyExtraction, Extraction, ExtractionContext, ListBreed, ListContinuation,
+    ListExtraction, ListExtractor, NewExtractor, URLMatcher,
 };
 
 use super::common::innertube_request;
@@ -15,6 +14,12 @@ use super::types::{request, response};
 
 #[derive(Clone, Copy)]
 pub struct YoutubeTabLE {}
+
+impl NewExtractor for YoutubeTabLE {
+    fn new() -> Self {
+        YoutubeTabLE {}
+    }
+}
 
 impl YoutubeTabLE {
     async fn yti_browse(
@@ -40,7 +45,6 @@ impl YoutubeTabLE {
             },
             ..Default::default()
         };
-        println!("{:?}", json);
         innertube_request(ctx, &client, "browse", json).await
     }
     async fn yti_browse_cont(
@@ -66,7 +70,6 @@ impl YoutubeTabLE {
             },
             ..Default::default()
         };
-        println!("{:?}", json);
         innertube_request(ctx, &client, "browse", json).await
     }
     async fn yti_navigation_resolve(
@@ -90,7 +93,6 @@ impl YoutubeTabLE {
             },
             ..Default::default()
         };
-        println!("{:?}", json);
         innertube_request(ctx, &client, "navigation/resolve_url", json).await
     }
 }
@@ -156,7 +158,6 @@ impl ListExtractor for YoutubeTabLE {
             let browse = self
                 .yti_browse(ctx, &browse_end.browse_id, &ANDROID, browse_end.params)
                 .await?;
-            println!("{:#?}", browse);
             get_videos(browse.contents.unwrap()).unwrap().into()
         };
         let breed = if browse_end.browse_id.starts_with("VL") {
@@ -192,7 +193,6 @@ impl ListExtractor for YoutubeTabLE {
         let browse = self
             .yti_browse_cont(ctx, browse_id, &ANDROID, continuation.to_string())
             .await?;
-        println!("{:#?}", browse);
         let pvlr: VideoList<Extraction> = browse.continuation_contents.unwrap().into();
 
         return Ok(ListContinuation {

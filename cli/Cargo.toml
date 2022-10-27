@@ -1,0 +1,20 @@
+[package]
+name = "reyt"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["all_extractors", "allow_js"]
+allow_js = ["reytan/allow_js"]
+
+all_extractors = ["bandcamp", "soundcloud", "youtube"]
+bandcamp = ["reytan/bandcamp"]
+soundcloud = ["reytan/soundcloud"]
+youtube = ["reytan/youtube"]
+
+[dependencies]
+anyhow = "1.0.66"
+clap = { version = "4.0.18", features = ["cargo", "derive"] }
+reytan = { path = "../core", default-features = false }
+tokio = "1.21.2"
+url = "2.3.1"

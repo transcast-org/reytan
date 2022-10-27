@@ -4,13 +4,20 @@ use reytan_extractor_api::reqwest::header;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
     async_trait, AudioDetails, Extractable, Extraction, ExtractionContext, FormatBreed,
-    MediaFormat, MediaFormatURL, MediaMetadata, MediaPlayback, RecordingExtractor, URLMatcher,
+    MediaFormat, MediaFormatURL, MediaMetadata, MediaPlayback, NewExtractor, RecordingExtractor,
+    URLMatcher,
 };
 
 use super::common::{_is_bandcamp, _path_is};
 use super::types::web_fragments::DataTralbum;
 
 pub struct BandcampRE {}
+
+impl NewExtractor for BandcampRE {
+    fn new() -> Self {
+        BandcampRE {}
+    }
+}
 
 impl URLMatcher for BandcampRE {
     fn match_extractor(&self, url: &Url) -> bool {

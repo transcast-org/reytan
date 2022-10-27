@@ -1,8 +1,8 @@
 use nipper::Document;
 use reytan_extractor_api::anyhow::Result;
-use reytan_extractor_api::async_trait;
 use reytan_extractor_api::reqwest::header;
 use reytan_extractor_api::url::Url;
+use reytan_extractor_api::{async_trait, NewExtractor};
 use reytan_extractor_api::{
     AnyExtraction, Extraction, ExtractionContext, ListBreed, ListContinuation, ListExtraction,
     ListExtractor, MediaMetadata, MediaPlayback, URLMatcher,
@@ -12,6 +12,12 @@ use super::common::{_is_bandcamp, _path_is};
 use super::types::web_fragments::DataTralbum;
 
 pub struct BandcampAlbumLE {}
+
+impl NewExtractor for BandcampAlbumLE {
+    fn new() -> Self {
+        BandcampAlbumLE {}
+    }
+}
 
 impl URLMatcher for BandcampAlbumLE {
     fn match_extractor(&self, url: &Url) -> bool {

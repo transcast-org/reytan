@@ -15,12 +15,16 @@ use anyhow::Result;
 use serde::Serialize;
 use url::Url;
 
+pub trait NewExtractor {
+    fn new() -> Self;
+}
+
 pub trait URLMatcher {
     fn match_extractor(&self, url: &Url) -> bool;
 }
 
 #[async_trait]
-pub trait RecordingExtractor {
+pub trait RecordingExtractor: URLMatcher + Sync + Send {
     async fn extract_recording(
         &self,
         ctx: &ExtractionContext,
@@ -171,7 +175,7 @@ pub struct ListContinuation {
 }
 
 #[async_trait]
-pub trait ListExtractor {
+pub trait ListExtractor: URLMatcher + Sync + Send {
     /// Extracts something that is a list from the service.
     ///
     /// `continuation` is to be used if you're fetching the next portion (page) of the list, as returned in ListExtraction.continuation.
@@ -188,4 +192,36 @@ pub trait ListExtractor {
         id: &str,
         continuation: &str,
     ) -> Result<ListContinuation>;
+}
+
+pub enum AnyExtractor {
+    Recording(Box<dyn RecordingExtractor>),
+    List(Box<dyn ListExtractor>),
+}
+
+impl AnyExtractor {
+    pub async fn extract_info(
+        &self,
+        ctx: &ExtractionContext,
+        url: &Url,
+        wanted: &Extractable,
+    ) -> Result<AnyExtraction> {
+        match self {
+            AnyExtractor::Recording(re) => re
+                .extract_recording(ctx, url, wanted)
+                .await
+                .map(AnyExtraction::Recording),
+            AnyExtractor::List(le) => le
+                .extract_list_initial(ctx, url)
+                .await
+                .map(AnyExtraction::List),
+        }
+    }
+
+    pub fn match_extractor(&self, url: &Url) -> bool {
+        match self {
+            AnyExtractor::Recording(re) => re.match_extractor(url),
+            AnyExtractor::List(le) => le.match_extractor(url),
+        }
+    }
 }

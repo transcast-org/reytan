@@ -4,13 +4,19 @@ use reytan_extractor_api::anyhow::Result;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
     async_trait, AnyExtraction, Extraction, ExtractionContext, ListBreed, ListContinuation,
-    ListExtraction, ListExtractor, URLMatcher,
+    ListExtraction, ListExtractor, NewExtractor, URLMatcher,
 };
 
 use crate::common::get_api_request;
 use crate::types::{MaybeTrackInfo, Set, Track};
 
 pub struct SoundcloudSetLE {}
+
+impl NewExtractor for SoundcloudSetLE {
+    fn new() -> Self {
+        SoundcloudSetLE {}
+    }
+}
 
 impl URLMatcher for SoundcloudSetLE {
     fn match_extractor(&self, url: &Url) -> bool {
@@ -34,7 +40,6 @@ impl ListExtractor for SoundcloudSetLE {
             &mut QString::new(vec![("url", url.as_str())]),
         )
         .await?;
-        println!("{:#?}", set);
         Ok(ListExtraction {
             id: set.id.to_string(),
             breed: ListBreed::Album,

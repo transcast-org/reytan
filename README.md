@@ -4,7 +4,7 @@ reytan extracts media (videos, music, playlists, channels, albums, ...) from som
 
 ## how the reytan doin?
 
-- **done status: no higher-level API yet**
+- **done status: basic higher-level API done now**, not usable for lists yet
 - **stability status: absolutely unstable APIs**
 - release status: no
 
@@ -18,6 +18,7 @@ reytan extracts media (videos, music, playlists, channels, albums, ...) from som
 
 - YouTube, incl. JS signatures, agegate workarounds
 - Bandcamp (website mp3 playback only)
+- Soundcloud
 
 ## issues, feature requests
 

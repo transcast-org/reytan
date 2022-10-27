@@ -18,14 +18,19 @@ use reytan_extractor_api::reqwest::header;
 
 use once_cell::sync::Lazy;
 use reytan_extractor_api::anyhow::{bail, Result};
-use reytan_extractor_api::async_trait;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
-    ExtractLevel, Extractable, Extraction, ExtractionContext, LiveStatus, MediaFormat,
-    MediaMetadata, MediaPlayback, RecordingExtractor, URLMatcher,
+    async_trait, ExtractLevel, Extractable, Extraction, ExtractionContext, LiveStatus, MediaFormat,
+    MediaMetadata, MediaPlayback, NewExtractor, RecordingExtractor, URLMatcher,
 };
 
 pub struct YoutubeRE {}
+
+impl NewExtractor for YoutubeRE {
+    fn new() -> Self {
+        YoutubeRE {}
+    }
+}
 
 impl YoutubeRE {
     async fn yti_player(
@@ -56,7 +61,6 @@ impl YoutubeRE {
             },
             ..Default::default()
         };
-        println!("{:?}", json);
         innertube_request(ctx, &client, "player", json).await
     }
 }
@@ -246,7 +250,6 @@ impl YoutubeRE {
             .name("sig")
             .unwrap()
             .as_str();
-        dbg!(sig_fn_name);
         let sig_fn_match = Regex::new(&format!(
                     r#"(?:function\s+{0}|[{{;,]\s*{0}\s*=\s*function|(?:var|const|let)\s+{0}\s*=\s*function)\s*\((?P<args>[^)]*)\)\s*(?P<code>\{{\s*a\s*=\s*a\s*\.\s*split\s*\(\s*(?:""|'')\s*\)\s*;\s*(?P<mangler>[a-zA-Z0-9_$]{{2}})\s*\..+?}})"#,
                     regex::escape(sig_fn_name),
@@ -254,9 +257,6 @@ impl YoutubeRE {
         let sig_fn_code = sig_fn_match.name("code").unwrap().as_str();
         let sig_fn_args = sig_fn_match.name("args").unwrap().as_str();
         let sig_fn_mangler_name = sig_fn_match.name("mangler").unwrap().as_str();
-        dbg!(sig_fn_code);
-        dbg!(sig_fn_args);
-        dbg!(sig_fn_mangler_name);
         let sig_manglers = Regex::new(&format!(
             r#"(?s)(?:(?:var|const|let)\s+|[{{;,]\s*){0}\s*=\s*(?P<code>\{{.+?}}\s*}}\s*);"#,
             regex::escape(sig_fn_mangler_name),
@@ -267,7 +267,6 @@ impl YoutubeRE {
         .name("code")
         .unwrap()
         .as_str();
-        dbg!(sig_manglers);
         let ncode_fn_init_name_match = WEB_JS_NCODE_FN_INITIAL_NAME_RE
             .captures(&player_js)
             .unwrap();
@@ -293,7 +292,6 @@ impl YoutubeRE {
             const ncode=function({ncode_fn_args}){ncode_fn_code};
             "
         );
-        println!("{}", &js_payload);
 
         ctx.cache
             .set(WEB_JS_FUNCTIONS_POOL, &script_hash, &js_payload)
@@ -357,7 +355,6 @@ impl YoutubeRE {
 
                 let mut url_params = QString::from(url.query().unwrap());
                 if let Some(original_n) = url_params.get("n") {
-                    dbg!(original_n);
                     let ncode_r = js_context
                         .eval(format!(
                             "ncode({})",
@@ -647,14 +644,6 @@ impl YoutubeRE {
             .await;
         }
 
-        println!(
-            "{:#?}",
-            players
-                .iter()
-                .map(|p| &p.playability_status)
-                .collect::<Vec<_>>()
-        );
-
         match players.into_iter().reduce(|mut prev, cur| {
             prev.microformat = prev.microformat.or(cur.microformat);
             if prev.playability_status.status != "OK" && cur.playability_status.status == "OK" {
@@ -783,7 +772,6 @@ mod tests {
             )
             .await
             .expect("yti player");
-        println!("{:?}", response);
         assert_eq!(
             response.playability_status.status, "OK",
             "playability status"
