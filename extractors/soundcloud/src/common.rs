@@ -2,8 +2,8 @@ use nipper::Document;
 use once_cell::sync::Lazy;
 use qstring::QString;
 use regex::Regex;
-use reytan_extractor_api::anyhow::{bail, Result};
-use reytan_extractor_api::reqwest::Response;
+use reytan_extractor_api::anyhow::{anyhow, bail, Result};
+use reytan_extractor_api::surf::Response;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::ExtractionContext;
 use serde::Deserialize;
@@ -34,14 +34,10 @@ fn get_script_urls(webpage: &str) -> Vec<Url> {
 
 async fn extract_client_id(ctx: &ExtractionContext) -> Result<String> {
     let webpage = ctx
-        .http
-        .get(SOUNDCLOUD_WEB_URL.clone())
-        .send()
-        .await?
-        .text()
+        .get_body("webpage", ctx.http.get(SOUNDCLOUD_WEB_URL.clone()))
         .await?;
     for script_url in get_script_urls(&webpage) {
-        let script = ctx.http.get(script_url).send().await?.text().await?;
+        let script = ctx.get_body("js script", ctx.http.get(script_url)).await?;
         if let Some(capture) = WEB_JS_CLIENT_ID.captures(&script) {
             return Ok(capture.get(1).unwrap().as_str().to_string());
         }
@@ -63,6 +59,7 @@ async fn get_client_id(ctx: &ExtractionContext, force: bool) -> Result<String> {
 /*
 async fn do_post_api_request<Q>(
     ctx: &ExtractionContext,
+    resource_name: &str,
     path: &str,
     params: &mut QString,
     payload: &Q,
@@ -75,16 +72,21 @@ where
     params.add_pair(("client_id", get_client_id(ctx, force_get_client_id).await?));
     url.set_query(Some(&params.to_string()));
     Ok(ctx
-        .http
-        .post(url)
-        .body(serde_json::to_string(payload)?)
-        .send()
-        .await?)
+        .send_request(
+            resource_name,
+            ctx.http
+                .post(url)
+                .body_json(payload)
+                .map_err(|e| anyhow!(e))?,
+        )
+        .await
+        .map_err(|e| anyhow!(e))?)
 }
 */
 
 async fn do_get_api_request(
     ctx: &ExtractionContext,
+    resource_name: &str,
     path: &str,
     params: &mut QString,
     force_get_client_id: bool,
@@ -92,12 +94,16 @@ async fn do_get_api_request(
     let mut url = Url::parse("https://api-v2.soundcloud.com/")?.join(path)?;
     params.add_pair(("client_id", get_client_id(ctx, force_get_client_id).await?));
     url.set_query(Some(&params.to_string()));
-    Ok(ctx.http.get(url).send().await?)
+    Ok(ctx
+        .send_request(resource_name, ctx.http.get(url))
+        .await
+        .map_err(|e| anyhow!(e))?)
 }
 
 /*
 pub async fn post_api_request<Q, A>(
     ctx: &ExtractionContext,
+    resource_name: &str,
     path: &str,
     params: &mut QString,
     payload: &Q,
@@ -106,27 +112,30 @@ where
     Q: Serialize,
     A: for<'a> Deserialize<'a>,
 {
-    let mut res = do_post_api_request(ctx, path, params, payload, false).await?;
-    if [401, 403].contains(&res.status().as_u16()) {
+    let mut res = do_post_api_request(ctx, resource_name, path, params, payload, false).await?;
+    let status = res.status();
+    if status == 401 || status == 403 {
         // retry with refreshing client_id
-        res = do_post_api_request(ctx, path, params, payload, true).await?;
+        res = do_post_api_request(ctx, resource_name, path, params, payload, true).await?;
     }
-    Ok(res.json().await?)
+    Ok(res.body_json().await.map_err(|e| anyhow!(e))?)
 }
 */
 
 pub async fn get_api_request<A>(
     ctx: &ExtractionContext,
+    resource_name: &str,
     path: &str,
     params: &mut QString,
 ) -> Result<A>
 where
     A: for<'a> Deserialize<'a>,
 {
-    let mut res = do_get_api_request(ctx, path, params, false).await?;
-    if [401, 403].contains(&res.status().as_u16()) {
+    let mut res = do_get_api_request(ctx, resource_name, path, params, false).await?;
+    let status = res.status();
+    if status == 401 || status == 403 {
         // retry with refreshing client_id
-        res = do_get_api_request(ctx, path, params, true).await?;
+        res = do_get_api_request(ctx, resource_name, path, params, true).await?;
     }
-    Ok(res.json().await?)
+    Ok(res.body_json().await.map_err(|e| anyhow!(e))?)
 }

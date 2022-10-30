@@ -83,6 +83,7 @@ impl RecordingExtractor for SoundcloudRE {
         let track: Track = if let Some((track_id, secret_token)) = self.do_match(url).1 {
             get_api_request(
                 ctx,
+                "track info",
                 &format!("/tracks/{}", &track_id),
                 &mut QString::new(if let Some(token) = secret_token {
                     vec![("secret_token", token)]
@@ -94,6 +95,7 @@ impl RecordingExtractor for SoundcloudRE {
         } else {
             get_api_request(
                 ctx,
+                "track info",
                 "/resolve",
                 &mut QString::new(vec![("url", url.as_str())]),
             )

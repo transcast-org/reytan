@@ -13,8 +13,6 @@ use qstring::QString;
 use regex::Regex;
 #[cfg(feature = "allow_js")]
 use reytan_extractor_api::anyhow::{Context, Error};
-#[cfg(feature = "allow_js")]
-use reytan_extractor_api::reqwest::header;
 
 use once_cell::sync::Lazy;
 use reytan_extractor_api::anyhow::{bail, Result};
@@ -61,7 +59,14 @@ impl YoutubeRE {
             },
             ..Default::default()
         };
-        innertube_request(ctx, &client, "player", json).await
+        innertube_request(
+            ctx,
+            &format!("player (as {})", client.name),
+            &client,
+            "player",
+            json,
+        )
+        .await
     }
 }
 
@@ -242,7 +247,12 @@ impl YoutubeRE {
             return Ok(functions);
         }
 
-        let player_js = ctx.http.get(script_url).send().await?.text().await?;
+        let player_js = ctx
+            .get_body(
+                &format!("js player {}", &script_hash),
+                ctx.http.get(script_url),
+            )
+            .await?;
         let sig_fn_name = WEB_JS_SIG_FN_NAME_RE
             .iter()
             .find_map(|r| r.captures(&player_js))
@@ -388,25 +398,19 @@ impl YoutubeRE {
         id: &str,
         client: &request::Client<'_>,
     ) -> Result<((Url, String), Option<usize>, Option<response::Player>)> {
-        let mut headers = header::HeaderMap::new();
+        use reytan_extractor_api::headers;
+
+        let is_embed = client.name.ends_with("_embedded");
+        let mut request = ctx.http.get(format!(
+            "https://{}/{}{id}",
+            client.host,
+            if is_embed { "embed/" } else { "watch?v=" }
+        ));
         if let Some(user_agent) = client.user_agent {
-            headers.insert(header::USER_AGENT, user_agent.parse().unwrap());
+            request = request.header(headers::USER_AGENT, user_agent);
         }
         let webpage = ctx
-            .http
-            .get(format!(
-                "https://{}/{}{id}",
-                client.host,
-                if client.name.ends_with("_embedded") {
-                    "embed/"
-                } else {
-                    "watch?v="
-                }
-            ))
-            .headers(headers)
-            .send()
-            .await?
-            .text()
+            .get_body(if is_embed { "embed page" } else { "watch page" }, request)
             .await?;
 
         let script_match = WEB_JS_URL_RE.captures(&webpage).unwrap();

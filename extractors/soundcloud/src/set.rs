@@ -36,6 +36,7 @@ impl ListExtractor for SoundcloudSetLE {
     ) -> Result<ListExtraction> {
         let set: Set = get_api_request(
             ctx,
+            "set metadata",
             "/resolve",
             &mut QString::new(vec![("url", url.as_str())]),
         )
@@ -74,6 +75,7 @@ impl ListExtractor for SoundcloudSetLE {
         let track_ids = continuation.split(",");
         let tracks: Vec<Track> = get_api_request(
             ctx,
+            "track list fragment",
             "/tracks",
             &mut QString::new(vec![(
                 "ids",

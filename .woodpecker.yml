@@ -5,6 +5,6 @@ pipeline:
       - |
         echo "https://alpine.sakamoto.pl/alpine/edge/main
         https://alpine.sakamoto.pl/alpine/edge/community" > /etc/apk/repositories
-      - apk add cargo openssl-dev build-base
+      - apk add cargo curl-dev openssl-dev build-base
       - cargo fetch
       - cargo test --all

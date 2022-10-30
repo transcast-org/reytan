@@ -1,3 +1,6 @@
+use anyhow::{anyhow, Result};
+use http_types::headers;
+use serde::Deserialize;
 use sys_locale::get_locale;
 
 use crate::cache::{
@@ -7,7 +10,7 @@ use crate::cache::{
 
 #[derive(Clone)]
 pub struct ExtractionContext {
-    pub http: reqwest::Client,
+    pub http: surf::Client,
     pub locales: Vec<String>,
     pub cache: CacheAPI,
 }
@@ -38,31 +41,63 @@ impl ExtractionContext {
             cache: CacheAPI::new(CacheImplementation::Local(LocalCache::new())),
         }
     }
+
+    pub async fn send_request(
+        &self,
+        _resource_name: &str,
+        request: impl Into<surf::Request>,
+    ) -> Result<surf::Response> {
+        self.http.send(request).await.map_err(|e| anyhow!(e))
+    }
+
+    pub async fn get_body(
+        &self,
+        resource_name: &str,
+        request: impl Into<surf::Request>,
+    ) -> Result<String> {
+        self.send_request(resource_name, request)
+            .await?
+            .body_string()
+            .await
+            .map_err(|e| anyhow!(e))
+    }
+
+    pub async fn get_json<T>(
+        &self,
+        resource_name: &str,
+        request: impl Into<surf::Request>,
+    ) -> Result<T>
+    where
+        T: for<'a> Deserialize<'a>,
+    {
+        self.send_request(resource_name, request)
+            .await?
+            .body_json()
+            .await
+            .map_err(|e| anyhow!(e))
+    }
 }
 
-pub fn build_http(locales: &Vec<String>) -> reqwest::Client {
-    let mut headers = reqwest::header::HeaderMap::new();
-    // default, probably overriden by extractors
-    headers.append(reqwest::header::USER_AGENT, "okhttp/4.9.3".parse().unwrap());
-    headers.append(
-        reqwest::header::ACCEPT_LANGUAGE,
-        locales
-            .into_iter()
-            .enumerate()
-            .map(|(i, l)| {
-                if i != 0 {
-                    format!("{l};q={}", 1.0 - (i as f32 / 10.0))
-                } else {
-                    l.clone()
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(",")
-            .parse()
-            .unwrap(),
-    );
-    reqwest::ClientBuilder::new()
-        .default_headers(headers)
-        .build()
+pub fn build_http(locales: &Vec<String>) -> surf::Client {
+    surf::Config::new()
+        .add_header(headers::USER_AGENT, "okhttp/4.9.3")
+        .unwrap()
+        .add_header(
+            headers::ACCEPT_LANGUAGE,
+            locales
+                .into_iter()
+                .enumerate()
+                .map(|(i, l)| {
+                    if i != 0 {
+                        format!("{l};q={}", 1.0 - (i as f32 / 10.0))
+                    } else {
+                        l.clone()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(","),
+        )
+        .unwrap()
+        .try_into()
         .unwrap()
 }

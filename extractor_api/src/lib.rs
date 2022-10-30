@@ -8,7 +8,8 @@ pub mod cache;
 
 pub use anyhow;
 pub use async_trait::async_trait;
-pub use reqwest;
+pub use http_types::headers;
+pub use surf;
 pub use url;
 
 use anyhow::Result;

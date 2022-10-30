@@ -25,6 +25,7 @@ impl YoutubeTabLE {
     async fn yti_browse(
         self,
         ctx: &ExtractionContext,
+        resource_name: &str,
         id: &str,
         client_: &request::Client<'_>,
         params: Option<String>,
@@ -45,11 +46,12 @@ impl YoutubeTabLE {
             },
             ..Default::default()
         };
-        innertube_request(ctx, &client, "browse", json).await
+        innertube_request(ctx, resource_name, &client, "browse", json).await
     }
     async fn yti_browse_cont(
         self,
         ctx: &ExtractionContext,
+        resource_name: &str,
         id: &str,
         client_: &request::Client<'_>,
         continuation: String,
@@ -70,7 +72,7 @@ impl YoutubeTabLE {
             },
             ..Default::default()
         };
-        innertube_request(ctx, &client, "browse", json).await
+        innertube_request(ctx, resource_name, &client, "browse", json).await
     }
     async fn yti_navigation_resolve(
         self,
@@ -93,7 +95,7 @@ impl YoutubeTabLE {
             },
             ..Default::default()
         };
-        innertube_request(ctx, &client, "navigation/resolve_url", json).await
+        innertube_request(ctx, "url resolve", &client, "navigation/resolve_url", json).await
     }
 }
 
@@ -156,7 +158,13 @@ impl ListExtractor for YoutubeTabLE {
         let browse_end = navigation_resolve.endpoint.browse_endpoint.unwrap();
         let vl: VideoList<Extraction> = {
             let browse = self
-                .yti_browse(ctx, &browse_end.browse_id, &ANDROID, browse_end.params)
+                .yti_browse(
+                    ctx,
+                    "first page",
+                    &browse_end.browse_id,
+                    &ANDROID,
+                    browse_end.params,
+                )
                 .await?;
             get_videos(browse.contents.unwrap()).unwrap().into()
         };
@@ -191,7 +199,13 @@ impl ListExtractor for YoutubeTabLE {
         continuation: &str,
     ) -> Result<ListContinuation> {
         let browse = self
-            .yti_browse_cont(ctx, browse_id, &ANDROID, continuation.to_string())
+            .yti_browse_cont(
+                ctx,
+                "continuation",
+                browse_id,
+                &ANDROID,
+                continuation.to_string(),
+            )
             .await?;
         let pvlr: VideoList<Extraction> = browse.continuation_contents.unwrap().into();
 
