@@ -29,7 +29,7 @@ impl SoundcloudRE {
                 && segments
                     .get(1)
                     .filter(|s| {
-                        ["tracks", "albums", "sets", "reposts", "likes", "spotlight"].contains(s)
+                        !["tracks", "albums", "sets", "reposts", "likes", "spotlight"].contains(s)
                     })
                     .is_some()
             {

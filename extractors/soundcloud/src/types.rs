@@ -1,6 +1,8 @@
+use std::time::Duration;
+
 use reytan_extractor_api::{
-    AudioDetails, Extraction, FormatBreed, LiveStatus, MediaFormat, MediaFormatURL, MediaMetadata,
-    MediaPlayback,
+    chrono, AudioDetails, Extraction, FormatBreed, LiveStatus, MediaFormat, MediaFormatURL,
+    MediaMetadata, MediaPlayback, Utc,
 };
 use serde::Deserialize;
 
@@ -60,10 +62,13 @@ pub struct Track {
     pub id: u64,
     pub title: String,
     pub description: String,
+    pub duration: u64,
     pub media: Media,
     pub user: User,
-    pub created_at: String,
-    pub last_modified: String,
+    pub playback_count: u64,
+    pub created_at: Option<String>,
+    pub release_date: Option<String>,
+    pub last_modified: Option<String>,
 }
 
 impl From<Track> for Extraction {
@@ -72,7 +77,32 @@ impl From<Track> for Extraction {
             metadata: Some(MediaMetadata {
                 id: track.id.to_string(),
                 title: track.title,
+                description: Some(track.description),
+                duration: Some(Duration::from_millis(track.duration)),
+                view_count: Some(track.playback_count),
                 live_status: Some(LiveStatus::NotLive), // no live functionality
+                created_time: track
+                    .created_at
+                    .as_deref()
+                    .map(chrono::DateTime::parse_from_rfc3339)
+                    .map(Result::ok)
+                    .flatten()
+                    .map(chrono::DateTime::<Utc>::from),
+                published_time: track
+                    .release_date
+                    .as_deref()
+                    .map(chrono::DateTime::parse_from_rfc3339)
+                    .map(Result::ok)
+                    .flatten()
+                    .map(chrono::DateTime::<Utc>::from),
+                modified_time: track
+                    .last_modified
+                    .as_deref()
+                    .map(chrono::DateTime::parse_from_rfc3339)
+                    .map(Result::ok)
+                    .flatten()
+                    .map(chrono::DateTime::<Utc>::from),
+                ..Default::default()
             }),
             playback: Some(MediaPlayback {
                 formats: track

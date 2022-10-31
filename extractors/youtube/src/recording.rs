@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 
 use super::common::{innertube_request, YOUTUBE_HOSTS_MAIN, YOUTUBE_HOSTS_SHORT};
 use super::types::request::{self, clients};
@@ -731,6 +732,9 @@ impl RecordingExtractor for YoutubeRE {
             metadata: Some(MediaMetadata {
                 id: player.video_details.video_id,
                 title: player.video_details.title,
+                description: player.video_details.short_description,
+                duration: player.video_details.length_seconds.map(Duration::from_secs),
+                view_count: player.video_details.view_count,
                 live_status: if player.video_details.is_live {
                     Some(LiveStatus::IsLive)
                 } else if player.video_details.is_live_content {
@@ -738,6 +742,7 @@ impl RecordingExtractor for YoutubeRE {
                 } else {
                     Some(LiveStatus::NotLive)
                 },
+                // published_time: player.video_details,
                 ..Default::default()
             }),
             playback: if let Some(formats) = fmts {

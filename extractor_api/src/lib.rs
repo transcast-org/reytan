@@ -2,18 +2,21 @@
 extern crate smart_default;
 
 mod context;
+
 pub use context::{build_http, ExtractionContext};
 
 pub mod cache;
 
 pub use anyhow;
 pub use async_trait::async_trait;
+pub use chrono::{self, DateTime, Utc};
 pub use http_types::headers;
 pub use surf;
 pub use url;
 
 use anyhow::Result;
 use serde::Serialize;
+use std::time::Duration;
 use url::Url;
 
 pub trait NewExtractor {
@@ -64,7 +67,14 @@ pub struct Extraction {
 pub struct MediaMetadata {
     pub id: String,
     pub title: String,
+    pub description: Option<String>,
+    pub duration: Option<Duration>,
+    pub view_count: Option<u64>,
     pub live_status: Option<LiveStatus>,
+    pub age_limit: Option<u8>,
+    pub created_time: Option<DateTime<Utc>>,
+    pub published_time: Option<DateTime<Utc>>,
+    pub modified_time: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize, PartialEq, Clone, Debug)]

@@ -1,10 +1,12 @@
+use std::time::Duration;
+
 use nipper::Document;
 use reytan_extractor_api::anyhow::Result;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
-    async_trait, headers, AudioDetails, Extractable, Extraction, ExtractionContext, FormatBreed,
-    MediaFormat, MediaFormatURL, MediaMetadata, MediaPlayback, NewExtractor, RecordingExtractor,
-    URLMatcher,
+    async_trait, chrono, headers, AudioDetails, Extractable, Extraction, ExtractionContext,
+    FormatBreed, MediaFormat, MediaFormatURL, MediaMetadata, MediaPlayback, NewExtractor,
+    RecordingExtractor, URLMatcher, Utc,
 };
 
 use super::common::{_is_bandcamp, _path_is};
@@ -62,6 +64,31 @@ impl RecordingExtractor for BandcampRE {
             metadata: Some(MediaMetadata {
                 id: tralbum.url,
                 title: trackinfo.title.clone(),
+                duration: trackinfo.duration.map(Duration::from_secs_f64),
+                created_time: tralbum
+                    .current
+                    .new_date
+                    .as_deref()
+                    .map(chrono::DateTime::parse_from_rfc2822)
+                    .map(Result::ok)
+                    .flatten()
+                    .map(chrono::DateTime::<Utc>::from),
+                published_time: tralbum
+                    .current
+                    .publish_date
+                    .as_deref()
+                    .map(chrono::DateTime::parse_from_rfc2822)
+                    .map(Result::ok)
+                    .flatten()
+                    .map(chrono::DateTime::<Utc>::from),
+                modified_time: tralbum
+                    .current
+                    .mod_date
+                    .as_deref()
+                    .map(chrono::DateTime::parse_from_rfc2822)
+                    .map(Result::ok)
+                    .flatten()
+                    .map(chrono::DateTime::<Utc>::from),
                 ..Default::default()
             }),
             playback: Some(MediaPlayback {

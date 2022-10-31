@@ -27,6 +27,9 @@ pub mod web_fragments {
         #[derive(SmartDefault, Deserialize, PartialEq, Debug)]
         pub struct Current {
             pub title: String,
+            pub new_date: Option<String>,
+            pub publish_date: Option<String>,
+            pub mod_date: Option<String>,
         }
     }
 }
