@@ -3,10 +3,11 @@ use http_types::headers;
 use serde::Deserialize;
 use sys_locale::get_locale;
 
-use crate::cache::{
-    api::{CacheAPI, CacheImplementation, MapAPI},
-    local::LocalCache,
-};
+use crate::cache::api::{CacheAPI, CacheImplementation, MapAPI};
+#[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
+use crate::cache::local::LocalCache;
+#[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+use crate::cache::stub::StubCache;
 
 #[derive(Clone)]
 pub struct ExtractionContext {
@@ -30,6 +31,10 @@ impl ExtractionContext {
         ExtractionContext {
             http: build_http(&locales),
             locales,
+            // TODO: get actual cache implementations for other platforms as possible
+            #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+            cache: CacheAPI::new(CacheImplementation::Stub(StubCache::new())),
+            #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
             cache: CacheAPI::new(CacheImplementation::Local(LocalCache::new())),
         }
     }
