@@ -13,7 +13,9 @@ use qstring::QString;
 #[cfg(feature = "allow_js")]
 use regex::Regex;
 #[cfg(feature = "allow_js")]
-use reytan_extractor_api::anyhow::{Context, Error};
+use reytan_extractor_api::anyhow::Error;
+#[cfg(feature = "allow_js")]
+use serde::{Deserialize, Serialize};
 
 use once_cell::sync::Lazy;
 use reytan_extractor_api::anyhow::{bail, Result};
@@ -37,7 +39,7 @@ impl YoutubeRE {
         ctx: &ExtractionContext,
         id: &str,
         client_: &request::Client<'_>,
-        sts: Option<usize>,
+        sts: Option<u32>,
     ) -> Result<response::Player> {
         let mut client = client_.clone();
         let hl = &ctx
@@ -168,6 +170,10 @@ static WEB_JS_NCODE_FN_INITIAL_NAME_RE: Lazy<Regex> = Lazy::new(|| {
 static WEB_STS_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"[{,]"STS"\s*:\s*([0-9]{5})[,}]"#).unwrap());
 
+#[cfg(feature = "allow_js")]
+static WEB_JS_STS_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"[{,]['"]?signatureTimestamp['"]?\s*:\s*(\d{5})\s*[},]"#).unwrap());
+
 #[derive(PartialEq, Eq)]
 enum PlayabilityCategory {
     /// playable, according to youtube
@@ -233,16 +239,24 @@ static PLAYABILITY_STATUS_TYPE: Lazy<HashMap<String, PlayabilityCategory>> = Laz
 #[cfg(feature = "allow_js")]
 static WEB_JS_FUNCTIONS_POOL: &'static str = "youtube_js_player_fns";
 
+#[cfg(feature = "allow_js")]
+#[derive(Serialize, Deserialize, Default)]
+struct SigDefinition {
+    pub sig_code: String,
+    pub ncode_code: String,
+    pub js_sts: Option<u32>,
+}
+
 impl YoutubeRE {
     #[cfg(feature = "allow_js")]
     async fn get_js_functions(
         &self,
         ctx: &ExtractionContext,
-        (script_url, script_hash): (Url, String),
-    ) -> Result<String> {
+        (script_url, script_hash): (Url, &str),
+    ) -> Result<SigDefinition> {
         if let Ok(Some(functions)) = ctx
             .cache
-            .get::<String>(WEB_JS_FUNCTIONS_POOL, &script_hash)
+            .get::<SigDefinition>(WEB_JS_FUNCTIONS_POOL, &script_hash)
             .await
         {
             return Ok(functions);
@@ -250,7 +264,7 @@ impl YoutubeRE {
 
         let player_js = ctx
             .get_body(
-                &format!("js player {}", &script_hash),
+                &format!("js player {}", script_hash),
                 ctx.http.get(script_url),
             )
             .await?;
@@ -296,13 +310,18 @@ impl YoutubeRE {
             regex::escape(ncode_fn_name))).unwrap().captures(&player_js).unwrap();
         let ncode_fn_args = ncode_match.name("args").unwrap().as_str();
         let ncode_fn_code = ncode_match.name("code").unwrap().as_str();
-        let js_payload = format!(
-            "
-            const {sig_fn_mangler_name}={sig_manglers};
-            const sig=function({sig_fn_args}){sig_fn_code};
-            const ncode=function({ncode_fn_args}){ncode_fn_code};
-            "
-        );
+        let js_sts = WEB_JS_STS_RE
+            .captures(&player_js)
+            .map(|c| c.get(1).unwrap().as_str().parse().unwrap());
+        let js_payload = SigDefinition {
+            sig_code: format!(
+                "
+                const {sig_fn_mangler_name}={sig_manglers};
+                const sig=function({sig_fn_args}){sig_fn_code};"
+            ),
+            ncode_code: format!("const ncode=function({ncode_fn_args}){ncode_fn_code};"),
+            js_sts,
+        };
 
         ctx.cache
             .set(WEB_JS_FUNCTIONS_POOL, &script_hash, &js_payload)
@@ -314,20 +333,22 @@ impl YoutubeRE {
     #[cfg(feature = "allow_js")]
     async fn handle_sig(
         &self,
-        ctx: &ExtractionContext,
-        script_def: (Url, String),
+        _ctx: &ExtractionContext,
+        js_payload: SigDefinition,
         streaming_data: &mut StreamingData,
     ) -> Result<()> {
-        let js_payload = self.get_js_functions(ctx, script_def).await?;
-
         let mut js_context = JSContext::default();
         js_context
-            .eval(js_payload)
+            .eval(&js_payload.sig_code)
+            .map_err(|e| Error::msg(e.to_string(&mut js_context).unwrap().to_string()))?;
+        js_context
+            .eval(&js_payload.ncode_code)
             .map_err(|e| Error::msg(e.to_string(&mut js_context).unwrap().to_string()))?;
 
         for formats in [
             streaming_data.formats.as_mut(),
             streaming_data.adaptive_formats.as_mut(),
+            streaming_data.hls_formats.as_mut(),
         ]
         .into_iter()
         .flatten()
@@ -349,7 +370,9 @@ impl YoutubeRE {
                                 Error::msg(e.to_string(&mut js_context).unwrap().to_string())
                             })?
                             .to_string(&mut js_context)
-                            .unwrap()
+                            .map_err(|e| {
+                                Error::msg(e.to_string(&mut js_context).unwrap().to_string())
+                            })?
                             .to_string();
 
                         let signature_param = args.get("sp").unwrap_or("signature");
@@ -361,7 +384,7 @@ impl YoutubeRE {
                         sc_url.clone()
                     }
                 } else {
-                    panic!();
+                    bail!("neither of url or signatureCipher found in format");
                 };
 
                 let mut url_params = QString::from(url.query().unwrap());
@@ -373,7 +396,7 @@ impl YoutubeRE {
                         ))
                         .map_err(|e| Error::msg(e.to_string(&mut js_context).unwrap().to_string()))?
                         .to_string(&mut js_context)
-                        .unwrap()
+                        .map_err(|e| Error::msg(e.to_string(&mut js_context).unwrap().to_string()))?
                         .to_string();
                     url_params = QString::new(
                         url_params
@@ -393,12 +416,39 @@ impl YoutubeRE {
         Ok(())
     }
     #[cfg(feature = "allow_js")]
+    async fn decode_formats(
+        &self,
+        ctx: &ExtractionContext,
+        client: &request::Client<'_>,
+        (sig_definition, script_hash): (SigDefinition, &str),
+        mut player: response::Player,
+    ) -> Result<response::Player> {
+        if player.playability_status.status == "OK" {
+            if let Some(streaming_data) = player.streaming_data.as_mut() {
+                match self.handle_sig(ctx, sig_definition, streaming_data).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        player.streaming_data = None;
+                        player.playability_status.status = "REYTAN_FAILED_SIGNATURE".to_string();
+                        player.playability_status.reason_title = Some(format!(
+                            "Failed handling signatures (client: {}, player: {})",
+                            client.name, script_hash
+                        ));
+                        player.playability_status.reason = Some(e.to_string());
+                    }
+                }
+            }
+        }
+
+        Ok(player)
+    }
+    #[cfg(feature = "allow_js")]
     async fn extract_js_sts_and_player_web(
         &self,
         ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
-    ) -> Result<((Url, String), Option<usize>, Option<response::Player>)> {
+    ) -> Result<((Url, String), Option<u32>, Option<response::Player>)> {
         use reytan_extractor_api::headers;
 
         let is_embed = client.name.ends_with("_embedded");
@@ -445,29 +495,18 @@ impl YoutubeRE {
         id: &str,
         client: &request::Client<'_>,
     ) -> Result<response::Player> {
-        let (script_url, _, maybe_player) =
+        let ((script_url, script_hash), _, maybe_player) =
             self.extract_js_sts_and_player_web(ctx, id, client).await?;
+
+        let js_payload = self
+            .get_js_functions(ctx, (script_url, &script_hash))
+            .await?;
 
         let mut player = maybe_player.unwrap();
 
-        if player.playability_status.status == "OK" {
-            if let Some(streaming_data) = player.streaming_data.as_mut() {
-                match self
-                    .handle_sig(ctx, script_url, streaming_data)
-                    .await
-                    .with_context(|| format!("on handling signatures for {}", client.name))
-                {
-                    Ok(_) => {}
-                    Err(e) => {
-                        player.streaming_data = None;
-                        player.playability_status.status = "REYTAN_FAILED_SIGNATURE".to_string();
-                        player.playability_status.reason_title =
-                            Some("Failed handling signatures".to_string());
-                        player.playability_status.reason = Some(e.to_string());
-                    }
-                }
-            }
-        }
+        player = self
+            .decode_formats(ctx, client, (js_payload, &script_hash), player)
+            .await?;
 
         return Ok(player);
     }
@@ -478,35 +517,25 @@ impl YoutubeRE {
         id: &str,
         client: &request::Client<'_>,
     ) -> Result<response::Player> {
-        let (script_url, sts, maybe_player) =
+        let ((script_url, script_hash), sts_web, maybe_player) =
             self.extract_js_sts_and_player_web(ctx, id, client).await?;
+
+        let js_payload = self
+            .get_js_functions(ctx, (script_url, &script_hash))
+            .await?;
 
         // the player on the webpage is WEB_EMBEDDED client, might not the one we want
         let mut player = if client.name != clients::WEB_EMBEDDED.name || maybe_player.is_none() {
-            self.yti_player(ctx, id, client, sts).await.unwrap()
+            self.yti_player(ctx, id, client, sts_web.or(js_payload.js_sts))
+                .await
+                .unwrap()
         } else {
             maybe_player.unwrap()
         };
 
-        if player.playability_status.status == "OK" {
-            if let Some(streaming_data) = player.streaming_data.as_mut() {
-                match self
-                    .handle_sig(ctx, script_url, streaming_data)
-                    .await
-                    .with_context(|| format!("on handling signatures for {}", client.name))
-                {
-                    Ok(_) => {}
-                    Err(e) => {
-                        player.streaming_data = None;
-                        player.playability_status.status = "REYTAN_FAILED_SIGNATURE".to_string();
-                        player.playability_status.reason_title =
-                            Some("Failed handling signatures".to_string());
-                        player.playability_status.reason =
-                            Some(e.to_string() + ": " + &e.root_cause().to_string());
-                    }
-                }
-            }
-        }
+        player = self
+            .decode_formats(ctx, client, (js_payload, &script_hash), player)
+            .await?;
 
         return Ok(player);
     }
@@ -532,11 +561,11 @@ impl YoutubeRE {
     #[cfg(not(feature = "allow_js"))]
     async fn extract_player(
         &self,
-        http: &reqwest::Client,
+        ctx: &ExtractionContext,
         id: &str,
         client: &request::Client<'_>,
     ) -> Result<response::Player> {
-        let mut player_r = self.yti_player(http, &id, client, None).await;
+        let mut player_r = self.yti_player(ctx, &id, client, None).await;
 
         // if JS is needed for handling the signatures, we cannot handle them
         if client.js_needed {
@@ -916,6 +945,7 @@ mod tests {
             &super::WEB_JS_URL_RE,
             &super::WEB_JS_NCODE_FN_INITIAL_NAME_RE,
             &super::WEB_STS_RE,
+            &super::WEB_JS_STS_RE,
         ] {
             re.as_str();
         }

@@ -613,7 +613,7 @@ pub mod request {
         pub struct ContentPlaybackContext {
             #[default = "HTML5_PREF_WANTS"]
             pub html5_preference: String,
-            pub signature_timestamp: Option<usize>,
+            pub signature_timestamp: Option<u32>,
         }
 
         #[derive(SmartDefault, Serialize, Clone, Debug)]
