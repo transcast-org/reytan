@@ -61,7 +61,7 @@ async fn do_post_api_request<Q>(
     ctx: &ExtractionContext,
     resource_name: &str,
     path: &str,
-    params: &mut QString,
+    params: &QString,
     payload: &Q,
     force_get_client_id: bool,
 ) -> Result<Response>
@@ -69,6 +69,7 @@ where
     Q: Serialize,
 {
     let mut url = Url::parse("https://api-v2.soundcloud.com/")?.join(path)?;
+    let mut params = params.clone(); // cloning to avoid sending 2 client_id in the params
     params.add_pair(("client_id", get_client_id(ctx, force_get_client_id).await?));
     url.set_query(Some(&params.to_string()));
     Ok(ctx
@@ -88,10 +89,11 @@ async fn do_get_api_request(
     ctx: &ExtractionContext,
     resource_name: &str,
     path: &str,
-    params: &mut QString,
+    params: &QString,
     force_get_client_id: bool,
 ) -> Result<Response> {
     let mut url = Url::parse("https://api-v2.soundcloud.com/")?.join(path)?;
+    let mut params = params.clone(); // cloning to avoid sending 2 client_id in the params
     params.add_pair(("client_id", get_client_id(ctx, force_get_client_id).await?));
     url.set_query(Some(&params.to_string()));
     Ok(ctx
@@ -105,7 +107,7 @@ pub async fn post_api_request<Q, A>(
     ctx: &ExtractionContext,
     resource_name: &str,
     path: &str,
-    params: &mut QString,
+    params: &QString,
     payload: &Q,
 ) -> Result<A>
 where
