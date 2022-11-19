@@ -5,8 +5,8 @@ use reytan_extractor_api::anyhow::Result;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
     async_trait, chrono, headers, AudioDetails, Extractable, Extraction, ExtractionContext,
-    FormatBreed, MediaFormat, MediaFormatURL, MediaMetadata, MediaPlayback, NewExtractor,
-    RecordingExtractor, URLMatcher, Utc,
+    FormatBreed, MediaFormatDetails, MediaFormatEstablished, MediaFormatURL, MediaMetadata,
+    NewExtractor, RecordingExtractor, URLMatcher, Utc,
 };
 
 use super::common::{_is_bandcamp, _path_is};
@@ -91,28 +91,30 @@ impl RecordingExtractor for BandcampRE {
                     .map(chrono::DateTime::<Utc>::from),
                 ..Default::default()
             }),
-            playback: Some(MediaPlayback {
-                formats: {
+
+            established_formats: {
+                Some(
                     trackinfo
                         .file
                         .keys()
                         .into_iter()
-                        .map(|quality| MediaFormat {
-                            id: quality.to_string(),
-                            breed: FormatBreed::Audio,
-                            url: Box::new(MediaFormatURL::HTTP(
+                        .map(|quality| MediaFormatEstablished {
+                            url: MediaFormatURL::HTTP(
                                 Url::parse(&trackinfo.file.get(quality).unwrap().to_string())
                                     .unwrap(),
-                            )),
-                            audio_details: Some(AudioDetails {
-                                ..Default::default()
-                            }),
-                            video_details: None,
+                            ),
+                            details: MediaFormatDetails {
+                                id: quality.to_string(),
+                                breed: FormatBreed::Audio,
+                                audio_details: Some(AudioDetails {
+                                    ..Default::default()
+                                }),
+                                video_details: None,
+                            },
                         })
-                        .collect()
-                },
-                ..Default::default()
-            }),
+                        .collect(),
+                )
+            },
             ..Default::default()
         })
     }
@@ -154,8 +156,13 @@ mod tests {
             .expect("extraction");
         let metadata = recording.metadata.expect("metadata");
         assert_eq!(metadata.title, "Make that Skirt go Spinny");
-        let playback = recording.playback.expect("playback");
-        assert_eq!(playback.formats.len(), 1);
+        assert_eq!(
+            recording
+                .established_formats
+                .expect("established formats")
+                .len(),
+            1
+        );
     }
 
     #[tokio::test]
@@ -174,7 +181,6 @@ mod tests {
             .expect("extraction");
         let metadata = recording.metadata.expect("metadata");
         assert_eq!(metadata.title, "Rät");
-        let playback = recording.playback.expect("playback");
-        assert_eq!(playback.formats.len(), 1);
+        assert_eq!(recording.established_formats.expect("established formats").len(), 1);
     }
 }

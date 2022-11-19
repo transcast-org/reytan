@@ -3,8 +3,7 @@ use reytan_extractor_api::anyhow::Result;
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
     async_trait, headers, AnyExtraction, Extraction, ExtractionContext, ListBreed,
-    ListContinuation, ListExtraction, ListExtractor, MediaMetadata, MediaPlayback, NewExtractor,
-    URLMatcher,
+    ListContinuation, ListExtraction, ListExtractor, MediaMetadata, NewExtractor, URLMatcher,
 };
 
 use super::common::{_is_bandcamp, _path_is};
@@ -69,10 +68,6 @@ impl ListExtractor for BandcampAlbumLE {
                             metadata: Some(MediaMetadata {
                                 id: ti.title_link,
                                 title: ti.title,
-                                ..Default::default()
-                            }),
-                            playback: Some(MediaPlayback {
-                                formats: vec![],
                                 ..Default::default()
                             }),
                             ..Default::default()

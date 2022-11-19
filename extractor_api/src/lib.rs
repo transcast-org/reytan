@@ -60,7 +60,7 @@ pub enum ExtractLevel {
 #[derive(Default)]
 pub struct Extraction {
     pub metadata: Option<MediaMetadata>,
-    pub playback: Option<MediaPlayback>,
+    pub established_formats: Option<Vec<MediaFormatEstablished>>,
 }
 
 #[derive(Serialize, Default, PartialEq, Clone, Debug)]
@@ -87,15 +87,14 @@ pub enum LiveStatus {
     WasLive,
 }
 
-#[derive(Default)]
-pub struct MediaPlayback {
-    pub formats: Vec<MediaFormat>,
+pub struct MediaFormatEstablished {
+    pub details: MediaFormatDetails,
+    pub url: MediaFormatURL,
 }
 
-pub struct MediaFormat {
+pub struct MediaFormatDetails {
     pub id: String,
     pub breed: FormatBreed,
-    pub url: Box<dyn MediaFormatPointer>,
     pub video_details: Option<VideoDetails>,
     pub audio_details: Option<AudioDetails>,
 }
@@ -109,13 +108,6 @@ pub enum MediaFormatURL {
 #[async_trait]
 pub trait MediaFormatPointer {
     async fn get(&self) -> Result<MediaFormatURL>;
-}
-
-#[async_trait]
-impl MediaFormatPointer for MediaFormatURL {
-    async fn get(&self) -> Result<MediaFormatURL> {
-        Ok(self.clone())
-    }
 }
 
 /// Format type

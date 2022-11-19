@@ -21,8 +21,8 @@ use once_cell::sync::Lazy;
 use reytan_extractor_api::anyhow::{bail, Result};
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
-    async_trait, ExtractLevel, Extractable, Extraction, ExtractionContext, LiveStatus, MediaFormat,
-    MediaMetadata, MediaPlayback, NewExtractor, RecordingExtractor, URLMatcher,
+    async_trait, chrono, ExtractLevel, Extractable, Extraction, ExtractionContext, LiveStatus,
+    MediaFormatEstablished, MediaMetadata, NewExtractor, RecordingExtractor, URLMatcher, Utc,
 };
 
 pub struct YoutubeRE {}
@@ -113,8 +113,8 @@ impl YoutubeRE {
     }
 }
 
-fn parse_formats(strm: StreamingData) -> Vec<MediaFormat> {
-    let mut fmts: Vec<MediaFormat> = vec![];
+fn parse_formats(strm: StreamingData) -> Vec<MediaFormatEstablished> {
+    let mut fmts: Vec<MediaFormatEstablished> = vec![];
     if let Some(formats) = strm.formats {
         for fmt in formats {
             fmts.push(fmt.into());
@@ -598,12 +598,12 @@ impl YoutubeRE {
         }
     }
 
-    async fn get_player(
+    async fn get_players(
         &self,
         ctx: &ExtractionContext,
         url: &Url,
         wanted: &Extractable,
-    ) -> Result<response::Player> {
+    ) -> Result<(response::Player, HashSet<response::Player>)> {
         let id = self.get_id(url);
         let mut players = HashSet::new();
         let mut attempted_clients = HashSet::new();
@@ -678,7 +678,7 @@ impl YoutubeRE {
             .await;
         }
 
-        match players.into_iter().reduce(|mut prev, cur| {
+        match players.clone().into_iter().reduce(|mut prev, cur| {
             prev.microformat = prev.microformat.or(cur.microformat);
             if prev.playability_status.status != "OK" && cur.playability_status.status == "OK" {
                 prev.playability_status.status = "OK".to_string();
@@ -737,7 +737,7 @@ impl YoutubeRE {
 
             prev
         }) {
-            Some(player) => Ok(player),
+            Some(player) => Ok((player, players)),
             None => bail!("no players fetched successfully"),
         }
     }
@@ -751,7 +751,7 @@ impl RecordingExtractor for YoutubeRE {
         url: &Url,
         wanted: &Extractable,
     ) -> Result<Extraction> {
-        let player = self.get_player(ctx, url, wanted).await?;
+        let (player, players) = self.get_players(ctx, url, wanted).await?;
         let fmts = if let Some(stream) = player.streaming_data {
             Some(parse_formats(stream))
         } else {
@@ -762,7 +762,12 @@ impl RecordingExtractor for YoutubeRE {
                 id: player.video_details.video_id,
                 title: player.video_details.title,
                 description: player.video_details.short_description,
-                duration: player.video_details.length_seconds.map(Duration::from_secs),
+                duration: player
+                    .video_details
+                    .length_seconds
+                    // on livestreams, duration always equals 0
+                    .filter(|_| !player.video_details.is_live)
+                    .map(Duration::from_secs),
                 view_count: player.video_details.view_count,
                 live_status: if player.video_details.is_live {
                     Some(LiveStatus::IsLive)
@@ -771,17 +776,53 @@ impl RecordingExtractor for YoutubeRE {
                 } else {
                     Some(LiveStatus::NotLive)
                 },
-                // published_time: player.video_details,
+                published_time: player
+                    .microformat
+                    .as_ref()
+                    .map(|w| {
+                        if let Some(m) = &w.player_microformat_renderer {
+                            &m.publish_date
+                        } else if let Some(m) = &w.microformat_data_renderer {
+                            &m.publish_date
+                        } else {
+                            &None
+                        }
+                    })
+                    .map(|o| o.as_ref())
+                    .flatten()
+                    .map(|d| chrono::DateTime::parse_from_rfc2822(&d))
+                    .map(Result::ok)
+                    .flatten()
+                    .map(chrono::DateTime::<Utc>::from),
+                created_time: player
+                    .microformat
+                    .as_ref()
+                    .map(|w| {
+                        if let Some(m) = &w.player_microformat_renderer {
+                            &m.upload_date
+                        } else if let Some(m) = &w.microformat_data_renderer {
+                            &m.upload_date
+                        } else {
+                            &None
+                        }
+                    })
+                    .map(|o| o.as_ref())
+                    .flatten()
+                    .map(|d| chrono::DateTime::parse_from_rfc2822(&d))
+                    .map(Result::ok)
+                    .flatten()
+                    .map(chrono::DateTime::<Utc>::from),
+                age_limit: players
+                    .iter()
+                    .any(|p| {
+                        PLAYABILITY_STATUS_TYPE.get(&p.playability_status.status)
+                            == Some(&PlayabilityCategory::AgeGate)
+                    })
+                    .then_some(18)
+                    .or(Some(0)),
                 ..Default::default()
             }),
-            playback: if let Some(formats) = fmts {
-                Some(MediaPlayback {
-                    formats,
-                    ..Default::default()
-                })
-            } else {
-                None
-            },
+            established_formats: fmts,
             ..Default::default()
         })
     }
@@ -837,16 +878,16 @@ mod tests {
         let meta = response.metadata.expect("metadata");
         assert_eq!(meta.title, "[MMD] Adios - EVERGLOW [+Motion DL]");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
-        let play = response.playback.expect("playback");
-        assert!(play.formats.len() > 0);
-        let f251 = play
-            .formats
+        assert_eq!(meta.age_limit, Some(18));
+        let formats = response.established_formats.expect("established formats");
+        assert!(formats.len() > 0);
+        let f251 = formats
             .into_iter()
-            .find(|f| f.id == "251")
+            .find(|f| f.details.id == "251")
             .expect("format 251");
-        assert_eq!(f251.breed, FormatBreed::Audio);
-        assert_eq!(f251.video_details, None);
-        let audio = f251.audio_details.expect("251 audio details");
+        assert_eq!(f251.details.breed, FormatBreed::Audio);
+        assert_eq!(f251.details.video_details, None);
+        let audio = f251.details.audio_details.expect("251 audio details");
         assert_eq!(audio.channels.unwrap(), 2);
     }
 
@@ -868,18 +909,18 @@ mod tests {
         let meta = response.metadata.expect("metadata");
         assert_eq!(meta.title, "DECO*27 - ゴーストルール feat. 初音ミク");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
-        let play = response.playback.expect("playback");
-        assert!(play.formats.len() > 0);
-        let f251 = play
-            .formats
+        assert_eq!(meta.age_limit, Some(0));
+        let formats = response.established_formats.expect("established formats");
+        assert!(formats.len() > 0);
+        let f251 = formats
             .into_iter()
-            .find(|f| f.id == "251")
+            .find(|f| f.details.id == "251")
             .expect("format 251");
-        assert_eq!(f251.breed, FormatBreed::Audio);
-        assert_eq!(f251.video_details, None);
-        let audio = f251.audio_details.expect("251 audio details");
+        assert_eq!(f251.details.breed, FormatBreed::Audio);
+        assert_eq!(f251.details.video_details, None);
+        let audio = f251.details.audio_details.expect("251 audio details");
         assert_eq!(audio.channels.unwrap(), 2);
-        match f251.url.get().await.unwrap() {
+        match f251.url {
             MediaFormatURL::HTTP(u) => assert!(u.host_str().unwrap().ends_with(".googlevideo.com")),
             _ => panic!("251 should return HTTP URL"),
         }

@@ -2,10 +2,8 @@ use self::response::parts::Continuation;
 
 pub mod response {
     pub mod parts {
-        use api::MediaFormatURL;
-        use reytan_extractor_api::{
-            self as api, Extraction, FormatBreed, MediaFormat, MediaMetadata,
-        };
+        use api::{MediaFormatDetails, MediaFormatEstablished, MediaFormatURL};
+        use reytan_extractor_api::{self as api, Extraction, FormatBreed, MediaMetadata};
         use serde::Deserialize;
         use serde_aux::prelude::*;
 
@@ -44,8 +42,8 @@ pub mod response {
             pub audio_channels: Option<u8>,
         }
 
-        impl From<Format> for MediaFormat {
-            fn from(fmt: Format) -> MediaFormat {
+        impl From<Format> for MediaFormatEstablished {
+            fn from(fmt: Format) -> MediaFormatEstablished {
                 let is_hls = fmt.mime_type.starts_with("application/x-mpegURL");
                 let breed = if fmt.mime_type.starts_with("audio/") {
                     FormatBreed::Audio
@@ -63,40 +61,42 @@ pub mod response {
                 } else {
                     FormatBreed::Video
                 };
-                MediaFormat {
-                    id: fmt.itag.to_string(),
-                    url: Box::new(if is_hls {
+                MediaFormatEstablished {
+                    details: MediaFormatDetails {
+                        id: fmt.itag.to_string(),
+                        video_details: if breed == FormatBreed::Video
+                            || breed == FormatBreed::AudioVideo
+                        {
+                            Some(api::VideoDetails {
+                                width: fmt.width,
+                                height: fmt.height,
+                                ..Default::default()
+                            })
+                        } else {
+                            None
+                        },
+                        audio_details: if breed == FormatBreed::Audio
+                            || breed == FormatBreed::AudioVideo
+                        {
+                            Some(api::AudioDetails {
+                                channels: fmt.audio_channels,
+                                ..Default::default()
+                            })
+                        } else {
+                            None
+                        },
+                        breed,
+                    },
+                    url: if is_hls {
                         MediaFormatURL::HLS(fmt.url.unwrap().parse().unwrap())
                     } else {
                         MediaFormatURL::HTTP(fmt.url.unwrap().parse().unwrap())
-                    }),
-                    video_details: if breed == FormatBreed::Video
-                        || breed == FormatBreed::AudioVideo
-                    {
-                        Some(api::VideoDetails {
-                            width: fmt.width,
-                            height: fmt.height,
-                            ..Default::default()
-                        })
-                    } else {
-                        None
                     },
-                    audio_details: if breed == FormatBreed::Audio
-                        || breed == FormatBreed::AudioVideo
-                    {
-                        Some(api::AudioDetails {
-                            channels: fmt.audio_channels,
-                            ..Default::default()
-                        })
-                    } else {
-                        None
-                    },
-                    breed,
                 }
             }
         }
 
-        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct StreamingData {
             // not present in ios responses
@@ -107,7 +107,7 @@ pub mod response {
             pub hls_formats: Option<Vec<Format>>,
         }
 
-        #[derive(Deserialize, PartialEq, Eq, Hash, Default, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Default, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct PlayabilityStatus {
             pub status: String,
@@ -115,7 +115,7 @@ pub mod response {
             pub reason_title: Option<String>,
         }
 
-        #[derive(Deserialize, PartialEq, Eq, Hash, Default, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Default, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct VideoDetails {
             pub video_id: String,
@@ -136,7 +136,7 @@ pub mod response {
             pub is_live_content: bool,
         }
 
-        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct MicroformatsWrapper {
             pub player_microformat_renderer: Option<Microformats>,
@@ -144,7 +144,7 @@ pub mod response {
         }
 
         /// Microformats for web and web_* EXCEPT web_music
-        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct Microformats {
             /// ISO 3166-1 alpha-2, uppercase
@@ -167,7 +167,7 @@ pub mod response {
         }
 
         /// Very special microformats for very special web_music
-        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct MicroformatsMusic {
             /// ISO 3166-1 alpha-2, uppercase
@@ -187,7 +187,7 @@ pub mod response {
             pub video_details: Option<MicroformatsMusicVideoDetails>,
         }
 
-        #[derive(Deserialize, PartialEq, Eq, Hash, Debug)]
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         pub struct MicroformatsMusicVideoDetails {
             #[serde(deserialize_with = "deserialize_option_number_from_string")]
@@ -425,7 +425,6 @@ pub mod response {
                         title: vr.title.into(),
                         ..Default::default()
                     }),
-                    playback: None,
                     ..Default::default()
                 }
             }
@@ -507,7 +506,7 @@ pub mod response {
                         title: cvm.compact_video_data.video_data.metadata.title,
                         ..Default::default()
                     }),
-                    playback: None,
+                    ..Default::default()
                 }
             }
         }
@@ -545,7 +544,7 @@ pub mod response {
 
     use serde::Deserialize;
 
-    #[derive(Deserialize, PartialEq, Eq, Hash, Default, Debug)]
+    #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Default, Debug)]
     #[serde(rename_all = "camelCase")]
     /// `/youtubei/v1/player`
     pub struct Player {

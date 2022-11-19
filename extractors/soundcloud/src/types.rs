@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use reytan_extractor_api::{
-    chrono, AudioDetails, Extraction, FormatBreed, LiveStatus, MediaFormat, MediaFormatURL,
-    MediaMetadata, MediaPlayback, Utc,
+    chrono, AudioDetails, Extraction, FormatBreed, LiveStatus, MediaFormatDetails,
+    MediaFormatEstablished, MediaFormatURL, MediaMetadata, Utc,
 };
 use serde::Deserialize;
 
@@ -33,21 +33,21 @@ pub struct Transcoding {
     pub preset: String,
 }
 
-impl From<Transcoding> for MediaFormat {
+impl From<Transcoding> for MediaFormatEstablished {
     fn from(t: Transcoding) -> Self {
-        MediaFormat {
-            id: t.preset,
-            breed: FormatBreed::Audio,
-            url: match t.format.protocol {
-                MediaProtocol::Progressive => {
-                    Box::new(MediaFormatURL::HTTP(t.url.parse().unwrap()))
-                }
-                MediaProtocol::Hls => Box::new(MediaFormatURL::HLS(t.url.parse().unwrap())),
+        MediaFormatEstablished {
+            details: MediaFormatDetails {
+                id: t.preset,
+                breed: FormatBreed::Audio,
+                video_details: None,
+                audio_details: Some(AudioDetails {
+                    ..Default::default()
+                }),
             },
-            video_details: None,
-            audio_details: Some(AudioDetails {
-                ..Default::default()
-            }),
+            url: match t.format.protocol {
+                MediaProtocol::Progressive => MediaFormatURL::HTTP(t.url.parse().unwrap()),
+                MediaProtocol::Hls => MediaFormatURL::HLS(t.url.parse().unwrap()),
+            },
         }
     }
 }
@@ -104,14 +104,14 @@ impl From<Track> for Extraction {
                     .map(chrono::DateTime::<Utc>::from),
                 ..Default::default()
             }),
-            playback: Some(MediaPlayback {
-                formats: track
+            established_formats: Some(
+                track
                     .media
                     .transcodings
                     .into_iter()
-                    .map(MediaFormat::from)
+                    .map(MediaFormatEstablished::from)
                     .collect(),
-            }),
+            ),
         }
     }
 }

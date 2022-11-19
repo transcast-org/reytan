@@ -32,14 +32,14 @@ async fn main() -> Result<()> {
         AnyExtraction::Recording(e) => {
             let meta = e.metadata.unwrap();
             println!("{:#?}", meta);
-            let play = e.playback.unwrap();
-            for fmt in &play.formats {
-                let fmt_url = fmt.url.get().await?;
+            let formats = e.established_formats.unwrap();
+            for fmt in &formats {
+                let fmt_url = &fmt.url;
                 let printable_url = match fmt_url {
                     MediaFormatURL::HTTP(u) => format!("[HTTP] {}", u),
                     MediaFormatURL::HLS(u) => format!("[HLS] {}", u),
                 };
-                println!("{}: {}", &fmt.id, &printable_url);
+                println!("{}: {}", &fmt.details.id, &printable_url);
             }
         }
         AnyExtraction::List(_) => todo!(),
