@@ -2,12 +2,15 @@ use self::response::parts::Continuation;
 
 pub mod response {
     pub mod parts {
-        use api::{MediaFormatDetails, MediaFormatEstablished, MediaFormatURL};
-        use reytan_extractor_api::{self as api, Extraction, FormatBreed, MediaMetadata};
+        use once_cell::sync::Lazy;
+        use reytan_extractor_api::{
+            self as api, url::Url, Extraction, FormatBreed, MediaFormatDetails,
+            MediaFormatEstablished, MediaFormatURL, MediaMetadata, SubtitleExt,
+        };
         use serde::Deserialize;
         use serde_aux::prelude::*;
 
-        use crate::types::VideoList;
+        use super::super::VideoList;
 
         #[derive(SmartDefault, Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
@@ -194,6 +197,78 @@ pub mod response {
             #[serde(default)]
             pub duration_seconds: Option<u64>,
             pub external_video_id: Option<String>,
+        }
+
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct CaptionsWrapper {
+            pub player_captions_tracklist_renderer: PlayerCaptionsTracklistRenderer,
+        }
+
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct PlayerCaptionsTracklistRenderer {
+            pub caption_tracks: Option<Vec<CaptionTrack>>,
+        }
+
+        #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct CaptionTrack {
+            pub base_url: String,
+            pub language_code: String,
+            pub name: RunsWrapper,
+            // Some("asr") - automatic captions
+            // None - normal captions
+            pub kind: Option<String>,
+        }
+
+        static SUBTITLE_EXTS: Lazy<Vec<(&'static str, SubtitleExt)>> = Lazy::new(|| {
+            vec![
+                ("vtt", SubtitleExt::VTT),
+                ("ttml", SubtitleExt::TTML),
+                ("srv3", SubtitleExt::NonStandard(String::from("srv3"))),
+                ("srv2", SubtitleExt::NonStandard(String::from("srv2"))),
+                ("srv1", SubtitleExt::NonStandard(String::from("srv1"))),
+                ("json3", SubtitleExt::NonStandard(String::from("json3"))),
+            ]
+        });
+
+        impl From<PlayerCaptionsTracklistRenderer> for Option<Vec<api::Subtitle>> {
+            fn from(r: PlayerCaptionsTracklistRenderer) -> Self {
+                if let Some(caption_tracks) = r.caption_tracks {
+                    Some(
+                        caption_tracks
+                            .into_iter()
+                            .flat_map(|t| {
+                                let base_url = Url::parse(&t.base_url).unwrap();
+                                let base_query = qstring::QString::new(
+                                    base_url.query_pairs().filter(|(k, _)| k != "fmt").collect(),
+                                );
+                                let mut result = vec![];
+                                for (e, se) in SUBTITLE_EXTS.iter() {
+                                    let mut url = base_url.clone();
+                                    let mut query = base_query.clone();
+                                    query.add_pair(("fmt", *e));
+                                    url.set_query(Some(&query.to_string()));
+                                    result.push(api::Subtitle {
+                                        lang: t.language_code.clone(),
+                                        is_original_lang: None,
+                                        is_machine_generated: Some(
+                                            t.kind == Some("asr".to_string()),
+                                        ),
+                                        is_machine_translated: Some(false),
+                                        ext: se.clone(),
+                                        url,
+                                    });
+                                }
+                                result
+                            })
+                            .collect(),
+                    )
+                } else {
+                    None
+                }
+            }
         }
 
         #[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
@@ -548,6 +623,7 @@ pub mod response {
     #[serde(rename_all = "camelCase")]
     /// `/youtubei/v1/player`
     pub struct Player {
+        pub captions: Option<parts::CaptionsWrapper>,
         pub streaming_data: Option<parts::StreamingData>,
         pub playability_status: parts::PlayabilityStatus,
         pub video_details: parts::VideoDetails,

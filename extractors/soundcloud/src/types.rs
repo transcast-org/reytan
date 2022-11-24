@@ -112,6 +112,7 @@ impl From<Track> for Extraction {
                     .map(MediaFormatEstablished::from)
                     .collect(),
             ),
+            ..Default::default()
         }
     }
 }

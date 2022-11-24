@@ -823,6 +823,10 @@ impl RecordingExtractor for YoutubeRE {
                 ..Default::default()
             }),
             established_formats: fmts,
+            subtitles: player
+                .captions
+                .map(|w| w.player_captions_tracklist_renderer.into())
+                .flatten(),
             ..Default::default()
         })
     }
@@ -944,6 +948,29 @@ mod tests {
         let meta = response.metadata.expect("metadata");
         assert_eq!(meta.title, "lofi hip hop radio - beats to relax/study to");
         assert_eq!(meta.live_status, Some(LiveStatus::IsLive));
+    }
+
+    #[tokio::test]
+    async fn do_extract_subtitles() {
+        let youtube = YoutubeRE {};
+        let response = youtube
+            .extract_recording(
+                &ExtractionContext::new(),
+                &Url::parse("https://www.youtube.com/watch?v=UnIhRpIT7nc").unwrap(),
+                &Extractable {
+                    metadata: ExtractLevel::Basic,
+                    playback: ExtractLevel::Basic,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        let meta = response.metadata.expect("metadata");
+        assert_eq!(meta.title, "稲葉曇『ラグトレイン』Vo. 歌愛ユキ");
+        assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
+        let subtitles = response.subtitles.expect("subtitles");
+        // 3 languages, 6 formats
+        assert_eq!(subtitles.len(), 3 * 6);
     }
 
     #[test]

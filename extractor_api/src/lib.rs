@@ -61,6 +61,7 @@ pub enum ExtractLevel {
 pub struct Extraction {
     pub metadata: Option<MediaMetadata>,
     pub established_formats: Option<Vec<MediaFormatEstablished>>,
+    pub subtitles: Option<Vec<Subtitle>>,
 }
 
 #[derive(Serialize, Default, PartialEq, Clone, Debug)]
@@ -142,6 +143,32 @@ pub enum ListBreed {
     /// Machine-defined set of music, probably (virtually) endless
     /// (see: YouTube Mixes based on a song, Spotify/Tidal artist radio)
     Mix,
+}
+
+#[derive(Serialize, PartialEq, Clone, Debug)]
+pub enum SubtitleExt {
+    /// WebVTT - https://www.w3.org/TR/webvtt1/
+    VTT,
+    /// SubRip Text - https://www.matroska.org/technical/subtitles.html#srt-subtitles
+    SRT,
+    /// Timed Text Markup Language - https://www.w3.org/TR/ttml1/
+    TTML,
+    /// Advanced SubStation Alpha (if extended from SSA) - https://en.wikipedia.org/wiki/SubStation_Alpha#Advanced_SubStation_Alpha
+    ASS,
+    /// SubStation Alpha (if not extended to ASS) - https://en.wikipedia.org/wiki/SubStation_Alpha
+    SSA,
+    /// service-specific format that is not following any industry standards, such as YouTube's "srv3" or "json3"
+    NonStandard(String),
+}
+
+#[derive(Serialize, PartialEq, Clone, Debug)]
+pub struct Subtitle {
+    pub lang: String,
+    pub is_original_lang: Option<bool>,
+    pub is_machine_generated: Option<bool>,
+    pub is_machine_translated: Option<bool>,
+    pub ext: SubtitleExt,
+    pub url: Url,
 }
 
 /// Used as a result of the list extraction.
