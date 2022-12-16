@@ -65,11 +65,11 @@ impl ListExtractor for BandcampAlbumLE {
                     .into_iter()
                     .map(|ti| {
                         AnyExtraction::Recording(Extraction {
-                            metadata: Some(MediaMetadata {
+                            metadata: MediaMetadata {
                                 id: ti.title_link,
                                 title: ti.title,
                                 ..Default::default()
-                            }),
+                            },
                             ..Default::default()
                         })
                     })

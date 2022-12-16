@@ -74,7 +74,7 @@ pub struct Track {
 impl From<Track> for Extraction {
     fn from(track: Track) -> Self {
         Extraction {
-            metadata: Some(MediaMetadata {
+            metadata: MediaMetadata {
                 id: track.id.to_string(),
                 title: track.title,
                 description: Some(track.description),
@@ -103,7 +103,7 @@ impl From<Track> for Extraction {
                     .flatten()
                     .map(chrono::DateTime::<Utc>::from),
                 ..Default::default()
-            }),
+            },
             established_formats: Some(
                 track
                     .media

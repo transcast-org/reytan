@@ -758,7 +758,7 @@ impl RecordingExtractor for YoutubeRE {
             None
         };
         Ok(Extraction {
-            metadata: Some(MediaMetadata {
+            metadata: MediaMetadata {
                 id: player.video_details.video_id,
                 title: player.video_details.title,
                 description: player.video_details.short_description,
@@ -821,7 +821,7 @@ impl RecordingExtractor for YoutubeRE {
                     .then_some(18)
                     .or(Some(0)),
                 ..Default::default()
-            }),
+            },
             established_formats: fmts,
             subtitles: player
                 .captions
@@ -879,7 +879,7 @@ mod tests {
             )
             .await
             .expect("extracted player");
-        let meta = response.metadata.expect("metadata");
+        let meta = response.metadata;
         assert_eq!(meta.title, "[MMD] Adios - EVERGLOW [+Motion DL]");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
         assert_eq!(meta.age_limit, Some(18));
@@ -910,7 +910,7 @@ mod tests {
             )
             .await
             .expect("player response");
-        let meta = response.metadata.expect("metadata");
+        let meta = response.metadata;
         assert_eq!(meta.title, "DECO*27 - ゴーストルール feat. 初音ミク");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
         assert_eq!(meta.age_limit, Some(0));
@@ -945,7 +945,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let meta = response.metadata.expect("metadata");
+        let meta = response.metadata;
         assert_eq!(meta.title, "lofi hip hop radio - beats to relax/study to");
         assert_eq!(meta.live_status, Some(LiveStatus::IsLive));
     }
@@ -965,7 +965,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let meta = response.metadata.expect("metadata");
+        let meta = response.metadata;
         assert_eq!(meta.title, "稲葉曇『ラグトレイン』Vo. 歌愛ユキ");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
         let subtitles = response.subtitles.expect("subtitles");

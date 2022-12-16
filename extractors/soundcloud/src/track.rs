@@ -120,7 +120,7 @@ mod tests {
             metadata: ExtractLevel::Extended,
             playback: ExtractLevel::Extended,
         }).await.unwrap();
-        let metadata = recording.metadata.unwrap();
+        let metadata = recording.metadata;
         assert_eq!(metadata.id, "1294648321");
         assert_eq!(
             metadata.title,
@@ -144,7 +144,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let metadata = recording.metadata.unwrap();
+        let metadata = recording.metadata;
         assert_eq!(metadata.id, "123998367");
         assert_eq!(metadata.title, "Youtube - Dl Test Video \'\' Ä↭");
     }
@@ -165,7 +165,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let metadata = recording.metadata.unwrap();
+        let metadata = recording.metadata;
         assert_eq!(metadata.id, "123998367");
         assert_eq!(metadata.title, "Youtube - Dl Test Video \'\' Ä↭");
     }

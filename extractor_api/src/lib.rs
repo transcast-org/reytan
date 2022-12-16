@@ -59,7 +59,7 @@ pub enum ExtractLevel {
 
 #[derive(Default)]
 pub struct Extraction {
-    pub metadata: Option<MediaMetadata>,
+    pub metadata: MediaMetadata,
     pub established_formats: Option<Vec<MediaFormatEstablished>>,
     pub subtitles: Option<Vec<Subtitle>>,
 }

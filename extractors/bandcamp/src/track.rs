@@ -61,7 +61,7 @@ impl RecordingExtractor for BandcampRE {
         // for some reason, it's an array with one item
         let trackinfo = tralbum.trackinfo.get(0).expect("trackinfo");
         Ok(Extraction {
-            metadata: Some(MediaMetadata {
+            metadata: MediaMetadata {
                 id: tralbum.url,
                 title: trackinfo.title.clone(),
                 duration: trackinfo.duration.map(Duration::from_secs_f64),
@@ -90,7 +90,7 @@ impl RecordingExtractor for BandcampRE {
                     .flatten()
                     .map(chrono::DateTime::<Utc>::from),
                 ..Default::default()
-            }),
+            },
 
             established_formats: {
                 Some(
@@ -154,7 +154,7 @@ mod tests {
             )
             .await
             .expect("extraction");
-        let metadata = recording.metadata.expect("metadata");
+        let metadata = recording.metadata;
         assert_eq!(metadata.title, "Make that Skirt go Spinny");
         assert_eq!(
             recording
@@ -179,8 +179,14 @@ mod tests {
             )
             .await
             .expect("extraction");
-        let metadata = recording.metadata.expect("metadata");
+        let metadata = recording.metadata;
         assert_eq!(metadata.title, "Rät");
-        assert_eq!(recording.established_formats.expect("established formats").len(), 1);
+        assert_eq!(
+            recording
+                .established_formats
+                .expect("established formats")
+                .len(),
+            1
+        );
     }
 }

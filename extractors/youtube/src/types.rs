@@ -495,11 +495,11 @@ pub mod response {
         impl From<PlaylistVideoRenderer> for Extraction {
             fn from(vr: PlaylistVideoRenderer) -> Self {
                 Self {
-                    metadata: Some(MediaMetadata {
+                    metadata: MediaMetadata {
                         id: vr.binding.video_client_binding_data.video_id,
                         title: vr.title.into(),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 }
             }
@@ -571,7 +571,7 @@ pub mod response {
         impl From<CompactVideoModel> for Extraction {
             fn from(cvm: CompactVideoModel) -> Self {
                 Extraction {
-                    metadata: Some(MediaMetadata {
+                    metadata: MediaMetadata {
                         id: cvm
                             .compact_video_data
                             .on_tap
@@ -580,7 +580,7 @@ pub mod response {
                             .video_id,
                         title: cvm.compact_video_data.video_data.metadata.title,
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 }
             }

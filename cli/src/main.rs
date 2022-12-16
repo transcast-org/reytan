@@ -30,8 +30,7 @@ async fn main() -> Result<()> {
 
     match extraction {
         AnyExtraction::Recording(e) => {
-            let meta = e.metadata.unwrap();
-            println!("{:#?}", meta);
+            println!("{:#?}", e.metadata);
             let formats = e.established_formats.unwrap();
             for fmt in &formats {
                 let fmt_url = &fmt.url;
