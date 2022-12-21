@@ -7,3 +7,7 @@ members = [
     "extractors/soundcloud",
     "extractors/youtube",
 ]
+
+[patch.crates-io]
+curl-sys = { git = "https://github.com/selfisekai/curl-rust.git", branch = "impersonate-features", package = "curl-sys" }
+curl = { git = "https://github.com/selfisekai/curl-rust.git", branch = "impersonate-features" }
