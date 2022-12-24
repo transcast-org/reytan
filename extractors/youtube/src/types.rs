@@ -701,6 +701,14 @@ pub mod request {
     use serde::Serialize;
     use smart_default::SmartDefault;
 
+    #[derive(Serialize, Clone, Copy, Debug)]
+    pub struct ImpersonationTarget<'a> {
+        /// curl-impersonate target name
+        pub target: &'a str,
+        /// user-agent header, if not curl-impersonate default for the target
+        pub user_agent: Option<&'a str>,
+    }
+
     #[derive(SmartDefault, Serialize, Clone, Copy, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct Client<'a> {
@@ -713,14 +721,19 @@ pub mod request {
         #[default = "www.youtube.com"]
         pub host: &'a str,
         pub js_needed: bool,
+        /// used if impersonate_chrome/impersonate_ff feature is not used
         pub user_agent: Option<&'a str>,
+        /// TODO: used if is Some and impersonate_chrome feature is turned on
+        pub chrome_target: Option<ImpersonationTarget<'a>>,
+        /// TODO: used if is Some impersonate_ff feature is turned on
+        pub ff_target: Option<ImpersonationTarget<'a>>,
     }
 
     /// INNERTUBE_CLIENTS from yt-dlp: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube.py
     pub mod clients {
         use super::{
             parts::{ContextClient, ThirdParty},
-            Client,
+            Client, ImpersonationTarget,
         };
         pub static ANDROID_MUSIC: Client = Client {
             name: "android_music",
@@ -739,6 +752,8 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: false,
             user_agent: None,
+            chrome_target: None,
+            ff_target: None,
         };
         pub static ANDROID: Client = Client {
             name: "android",
@@ -757,6 +772,8 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: false,
             user_agent: None,
+            chrome_target: None,
+            ff_target: None,
         };
         pub static ANDROID_EMBEDDED: Client = Client {
             name: "android_embedded",
@@ -777,6 +794,8 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: false,
             user_agent: None,
+            chrome_target: None,
+            ff_target: None,
         };
         pub static ANDROID_CREATOR: Client = Client {
             name: "android_creator",
@@ -795,6 +814,8 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: false,
             user_agent: None,
+            chrome_target: None,
+            ff_target: None,
         };
         pub static IOS: Client = Client {
             name: "ios",
@@ -813,6 +834,8 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: false,
             user_agent: None,
+            chrome_target: None,
+            ff_target: None,
         };
         pub static IOS_EMBEDDED: Client = Client {
             name: "ios_embedded",
@@ -833,6 +856,8 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: false,
             user_agent: None,
+            chrome_target: None,
+            ff_target: None,
         };
         pub static IOS_MUSIC: Client = Client {
             name: "ios_music",
@@ -851,6 +876,8 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: false,
             user_agent: None,
+            chrome_target: None,
+            ff_target: None,
         };
         pub static IOS_CREATOR: Client = Client {
             name: "ios_creator",
@@ -869,6 +896,8 @@ pub mod request {
             host: "www.youtube.com",
             js_needed: false,
             user_agent: None,
+            chrome_target: None,
+            ff_target: None,
         };
         // all web formats require JS crypto handling for formats - currently not supported, but we need microformats
         pub static WEB: Client = Client {
@@ -890,6 +919,14 @@ pub mod request {
             user_agent: Some(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0",
             ),
+            chrome_target: Some(ImpersonationTarget {
+                target: "chrome104",
+                user_agent: None,
+            }),
+            ff_target: Some(ImpersonationTarget {
+                target: "ff102",
+                user_agent: None,
+            }),
         };
         pub static WEB_EMBEDDED: Client = Client {
             name: "web_embedded",
@@ -909,7 +946,17 @@ pub mod request {
             }),
             host: "www.youtube.com",
             js_needed: true,
-            user_agent: None,
+            user_agent: Some(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0",
+            ),
+            chrome_target: Some(ImpersonationTarget {
+                target: "chrome104",
+                user_agent: None,
+            }),
+            ff_target: Some(ImpersonationTarget {
+                target: "ff102",
+                user_agent: None,
+            }),
         };
         pub static WEB_MUSIC: Client = Client {
             name: "web_music",
@@ -927,7 +974,17 @@ pub mod request {
             third_party: None,
             host: "music.youtube.com",
             js_needed: true,
-            user_agent: None,
+            user_agent: Some(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0",
+            ),
+            chrome_target: Some(ImpersonationTarget {
+                target: "chrome104",
+                user_agent: None,
+            }),
+            ff_target: Some(ImpersonationTarget {
+                target: "ff102",
+                user_agent: None,
+            }),
         };
         pub static WEB_CREATOR: Client = Client {
             name: "web_creator",
@@ -945,7 +1002,17 @@ pub mod request {
             third_party: None,
             host: "www.youtube.com",
             js_needed: true,
-            user_agent: None,
+            user_agent: Some(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0",
+            ),
+            chrome_target: Some(ImpersonationTarget {
+                target: "chrome104",
+                user_agent: None,
+            }),
+            ff_target: Some(ImpersonationTarget {
+                target: "ff102",
+                user_agent: None,
+            }),
         };
         pub static MWEB: Client = Client {
             name: "mweb",
@@ -964,6 +1031,14 @@ pub mod request {
             host: "m.youtube.com",
             js_needed: true,
             user_agent: Some("Mozilla/5.0 (Linux; Android 10; LM-Q710(FGN)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.5195.136 Mobile Safari/537.36"),
+            chrome_target: Some(ImpersonationTarget {
+                target: "chrome99_android",
+                user_agent: None,
+            }),
+            ff_target: Some(ImpersonationTarget {
+                target: "ff102",
+                user_agent: Some("Mozilla/5.0 (Android 13; Mobile; rv:102.0) Gecko/102.0 Firefox/102.0"),
+            }),
         };
         pub static TV_EMBEDDED: Client = Client {
             name: "tv_embedded",
@@ -983,7 +1058,12 @@ pub mod request {
             }),
             host: "www.youtube.com",
             js_needed: true,
-            user_agent: None,
+            user_agent: Some("Mozilla/5.0 (Fuchsia) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.130 Safari/537.36 CrKey/1.56.500000"),
+            chrome_target: Some(ImpersonationTarget {
+                target: "chrome104",
+                user_agent: Some("Mozilla/5.0 (Fuchsia) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.130 Safari/537.36 CrKey/1.56.500000"),
+            }),
+            ff_target: None,
         };
     }
 
