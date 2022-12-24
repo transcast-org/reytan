@@ -11,3 +11,4 @@ members = [
 [patch.crates-io]
 curl-sys = { git = "https://github.com/selfisekai/curl-rust.git", branch = "impersonate-features", package = "curl-sys" }
 curl = { git = "https://github.com/selfisekai/curl-rust.git", branch = "impersonate-features" }
+regress = { git = "https://github.com/ridiculousfish/regress.git", rev = "ac59d90fd0b0f8f6373457a45b0f3e811a51c9b8" }
