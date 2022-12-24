@@ -10,6 +10,8 @@ keywords = ["scraper", "youtube"]
 [features]
 default = ["allow_js"]
 allow_js = ["dep:boa_engine", "dep:regex", "dep:qstring"]
+impersonate_chrome = ["reytan_extractor_api/impersonate_chrome"]
+impersonate_ff = ["reytan_extractor_api/impersonate_ff"]
 
 [dependencies]
 boa_engine = { version = "0.16.0", optional = true }

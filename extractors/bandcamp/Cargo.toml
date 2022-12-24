@@ -7,6 +7,10 @@ license = "Apache-2.0"
 authors = ["Lauren Liberda <lauren@selfisekai.rocks>"]
 keywords = ["scraper", "bandcamp"]
 
+[features]
+impersonate_chrome = ["reytan_extractor_api/impersonate_chrome"]
+impersonate_ff = ["reytan_extractor_api/impersonate_ff"]
+
 [dependencies]
 nipper = "0.1.9"
 once_cell = "1.15.0"
