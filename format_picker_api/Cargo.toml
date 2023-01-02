@@ -1,0 +1,13 @@
+[package]
+name = "reytan_format_picker_api"
+version = "0.1.0"
+edition = "2021"
+description = "reytan format picker types"
+license = "Apache-2.0"
+authors = ["Lauren Liberda <lauren@selfisekai.rocks>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+reytan_extractor_api = { path = "../extractor_api" }
+serde = { version = "1.0.152", features = ["derive"] }

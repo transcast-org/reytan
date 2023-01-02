@@ -104,14 +104,12 @@ impl From<Track> for Extraction {
                     .map(chrono::DateTime::<Utc>::from),
                 ..Default::default()
             },
-            established_formats: Some(
-                track
-                    .media
-                    .transcodings
-                    .into_iter()
-                    .map(MediaFormatEstablished::from)
-                    .collect(),
-            ),
+            established_formats: track
+                .media
+                .transcodings
+                .into_iter()
+                .map(MediaFormatEstablished::from)
+                .collect(),
             ..Default::default()
         }
     }

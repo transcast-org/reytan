@@ -753,9 +753,9 @@ impl RecordingExtractor for YoutubeRE {
     ) -> Result<Extraction> {
         let (player, players) = self.get_players(ctx, url, wanted).await?;
         let fmts = if let Some(stream) = player.streaming_data {
-            Some(parse_formats(stream))
+            parse_formats(stream)
         } else {
-            None
+            Vec::new()
         };
         Ok(Extraction {
             metadata: MediaMetadata {
@@ -823,10 +823,10 @@ impl RecordingExtractor for YoutubeRE {
                 ..Default::default()
             },
             established_formats: fmts,
-            subtitles: player
+            established_subtitles: player
                 .captions
                 .map(|w| w.player_captions_tracklist_renderer.into())
-                .flatten(),
+                .unwrap_or_else(|| Vec::new()),
             ..Default::default()
         })
     }
@@ -883,7 +883,7 @@ mod tests {
         assert_eq!(meta.title, "[MMD] Adios - EVERGLOW [+Motion DL]");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
         assert_eq!(meta.age_limit, Some(18));
-        let formats = response.established_formats.expect("established formats");
+        let formats = response.established_formats;
         assert!(formats.len() > 0);
         let f251 = formats
             .into_iter()
@@ -914,7 +914,7 @@ mod tests {
         assert_eq!(meta.title, "DECO*27 - ゴーストルール feat. 初音ミク");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
         assert_eq!(meta.age_limit, Some(0));
-        let formats = response.established_formats.expect("established formats");
+        let formats = response.established_formats;
         assert!(formats.len() > 0);
         let f251 = formats
             .into_iter()
@@ -968,7 +968,7 @@ mod tests {
         let meta = response.metadata;
         assert_eq!(meta.title, "稲葉曇『ラグトレイン』Vo. 歌愛ユキ");
         assert_eq!(meta.live_status, Some(LiveStatus::NotLive));
-        let subtitles = response.subtitles.expect("subtitles");
+        let subtitles = response.established_subtitles;
         // 3 languages, 6 formats
         assert_eq!(subtitles.len(), 3 * 6);
     }

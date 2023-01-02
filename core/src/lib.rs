@@ -2,6 +2,10 @@ use once_cell::sync::Lazy;
 use reytan_extractor_api::anyhow::Result;
 use reytan_extractor_api::url::Url;
 pub use reytan_extractor_api::*;
+use reytan_format_picker_api::FormatPicker;
+pub use reytan_format_picker_api::{DownloadList, FormatSelection};
+#[cfg(feature = "jrsonnet")]
+use reytan_format_picker_jrsonnet::JrsonnetFormatPicker;
 
 pub static DEFAULT_EXTRACTOR_LIST: Lazy<Vec<&AnyExtractor>> = Lazy::new(|| {
     let l = vec![].into_iter();
@@ -21,13 +25,16 @@ pub static DEFAULT_EXTRACTOR_LIST: Lazy<Vec<&AnyExtractor>> = Lazy::new(|| {
 pub struct CoreClient<'a> {
     extractors: Vec<&'a AnyExtractor>,
     context: ExtractionContext,
+    format_picker: Box<dyn FormatPicker>,
 }
 
-impl CoreClient<'_> {
+impl<'a> CoreClient<'a> {
     pub fn new() -> Self {
         CoreClient {
             extractors: DEFAULT_EXTRACTOR_LIST.to_vec(),
             context: ExtractionContext::new(),
+            #[cfg(feature = "jrsonnet")]
+            format_picker: Box::new(JrsonnetFormatPicker::new()),
         }
     }
 
@@ -45,5 +52,19 @@ impl CoreClient<'_> {
             }
         }
         Ok(None)
+    }
+
+    pub async fn pick_formats(
+        &self,
+        selector: &str,
+        extraction: &'a Extraction,
+    ) -> Result<DownloadList> {
+        DownloadList::from(
+            &self
+                .format_picker
+                .pick_formats(selector, extraction)
+                .await?,
+            extraction,
+        )
     }
 }

@@ -15,7 +15,7 @@ pub use surf;
 pub use url;
 
 use anyhow::Result;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
 
@@ -60,8 +60,23 @@ pub enum ExtractLevel {
 #[derive(Default)]
 pub struct Extraction {
     pub metadata: MediaMetadata,
-    pub established_formats: Option<Vec<MediaFormatEstablished>>,
-    pub subtitles: Option<Vec<Subtitle>>,
+    pub established_formats: Vec<MediaFormatEstablished>,
+    pub established_subtitles: Vec<SubtitlePointerURL>,
+}
+
+impl Extraction {
+    pub fn format_details<'a>(&'a self) -> Vec<&'a MediaFormatDetails> {
+        self.established_formats
+            .iter()
+            .map(|f| &f.details)
+            .collect()
+    }
+    pub fn subtitle_details<'a>(&'a self) -> Vec<&'a SubtitleDetails> {
+        self.established_subtitles
+            .iter()
+            .map(|f| &f.details)
+            .collect()
+    }
 }
 
 #[derive(Serialize, Default, PartialEq, Clone, Debug)]
@@ -88,11 +103,13 @@ pub enum LiveStatus {
     WasLive,
 }
 
+#[derive(Serialize, Debug)]
 pub struct MediaFormatEstablished {
     pub details: MediaFormatDetails,
     pub url: MediaFormatURL,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct MediaFormatDetails {
     pub id: String,
     pub breed: FormatBreed,
@@ -100,7 +117,7 @@ pub struct MediaFormatDetails {
     pub audio_details: Option<AudioDetails>,
 }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Serialize, PartialEq, Clone, Debug)]
 pub enum MediaFormatURL {
     HTTP(Url),
     HLS(Url),
@@ -112,7 +129,7 @@ pub trait MediaFormatPointer {
 }
 
 /// Format type
-#[derive(Serialize, SmartDefault, PartialEq, Clone, Debug)]
+#[derive(Serialize, Deserialize, SmartDefault, PartialEq, Clone, Debug)]
 pub enum FormatBreed {
     #[default]
     AudioVideo,
@@ -120,13 +137,13 @@ pub enum FormatBreed {
     Audio,
 }
 
-#[derive(Serialize, SmartDefault, PartialEq, Clone, Debug)]
+#[derive(Serialize, Deserialize, SmartDefault, PartialEq, Clone, Debug)]
 pub struct VideoDetails {
     pub width: Option<u32>,
     pub height: Option<u32>,
 }
 
-#[derive(Serialize, SmartDefault, PartialEq, Clone, Debug)]
+#[derive(Serialize, Deserialize, SmartDefault, PartialEq, Clone, Debug)]
 pub struct AudioDetails {
     pub channels: Option<u8>,
 }
@@ -145,7 +162,7 @@ pub enum ListBreed {
     Mix,
 }
 
-#[derive(Serialize, PartialEq, Clone, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum SubtitleExt {
     /// WebVTT - https://www.w3.org/TR/webvtt1/
     VTT,
@@ -161,13 +178,18 @@ pub enum SubtitleExt {
     NonStandard(String),
 }
 
-#[derive(Serialize, PartialEq, Clone, Debug)]
-pub struct Subtitle {
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+pub struct SubtitleDetails {
     pub lang: String,
     pub is_original_lang: Option<bool>,
     pub is_machine_generated: Option<bool>,
     pub is_machine_translated: Option<bool>,
     pub ext: SubtitleExt,
+}
+
+#[derive(Serialize, PartialEq, Clone, Debug)]
+pub struct SubtitlePointerURL {
+    pub details: SubtitleDetails,
     pub url: Url,
 }
 

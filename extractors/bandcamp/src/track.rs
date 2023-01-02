@@ -92,29 +92,24 @@ impl RecordingExtractor for BandcampRE {
                 ..Default::default()
             },
 
-            established_formats: {
-                Some(
-                    trackinfo
-                        .file
-                        .keys()
-                        .into_iter()
-                        .map(|quality| MediaFormatEstablished {
-                            url: MediaFormatURL::HTTP(
-                                Url::parse(&trackinfo.file.get(quality).unwrap().to_string())
-                                    .unwrap(),
-                            ),
-                            details: MediaFormatDetails {
-                                id: quality.to_string(),
-                                breed: FormatBreed::Audio,
-                                audio_details: Some(AudioDetails {
-                                    ..Default::default()
-                                }),
-                                video_details: None,
-                            },
-                        })
-                        .collect(),
-                )
-            },
+            established_formats: trackinfo
+                .file
+                .keys()
+                .into_iter()
+                .map(|quality| MediaFormatEstablished {
+                    url: MediaFormatURL::HTTP(
+                        Url::parse(&trackinfo.file.get(quality).unwrap().to_string()).unwrap(),
+                    ),
+                    details: MediaFormatDetails {
+                        id: quality.to_string(),
+                        breed: FormatBreed::Audio,
+                        audio_details: Some(AudioDetails {
+                            ..Default::default()
+                        }),
+                        video_details: None,
+                    },
+                })
+                .collect(),
             ..Default::default()
         })
     }
@@ -156,13 +151,7 @@ mod tests {
             .expect("extraction");
         let metadata = recording.metadata;
         assert_eq!(metadata.title, "Make that Skirt go Spinny");
-        assert_eq!(
-            recording
-                .established_formats
-                .expect("established formats")
-                .len(),
-            1
-        );
+        assert_eq!(recording.established_formats.len(), 1);
     }
 
     #[tokio::test]
@@ -181,12 +170,6 @@ mod tests {
             .expect("extraction");
         let metadata = recording.metadata;
         assert_eq!(metadata.title, "Rät");
-        assert_eq!(
-            recording
-                .established_formats
-                .expect("established formats")
-                .len(),
-            1
-        );
+        assert_eq!(recording.established_formats.len(), 1);
     }
 }

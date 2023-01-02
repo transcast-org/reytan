@@ -6,6 +6,8 @@ members = [
     "extractors/bandcamp",
     "extractors/soundcloud",
     "extractors/youtube",
+    "format_picker_api",
+    "format_pickers/jrsonnet",
 ]
 
 [patch.crates-io]

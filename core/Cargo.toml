@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["all_extractors", "allow_js"]
+default = ["all_extractors", "allow_js", "jrsonnet"]
 allow_js = ["reytan_extractor_youtube?/allow_js"]
 impersonate_chrome = [
   "reytan_extractor_api/impersonate_chrome",
@@ -18,6 +18,8 @@ impersonate_ff = [
   "reytan_extractor_soundcloud?/impersonate_ff",
   "reytan_extractor_youtube?/impersonate_ff",
 ]
+# TODO: make it build without this
+jrsonnet = ["reytan_format_picker_jrsonnet"]
 
 all_extractors = ["bandcamp", "soundcloud", "youtube"]
 bandcamp = ["dep:reytan_extractor_bandcamp"]
@@ -30,3 +32,5 @@ reytan_extractor_api = { path = "../extractor_api" }
 reytan_extractor_bandcamp = { path = "../extractors/bandcamp", optional = true }
 reytan_extractor_soundcloud = { path = "../extractors/soundcloud", optional = true }
 reytan_extractor_youtube = { path = "../extractors/youtube", optional = true, default-features = false }
+reytan_format_picker_api = { path = "../format_picker_api" }
+reytan_format_picker_jrsonnet = { path = "../format_pickers/jrsonnet", optional = true }

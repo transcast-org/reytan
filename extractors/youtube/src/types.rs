@@ -43,6 +43,8 @@ pub mod response {
             pub audio_sample_rate: Option<u64>,
             /// amount of audio channels (mono, stereo)
             pub audio_channels: Option<u8>,
+            /// dynamic range compression
+            pub is_drc: Option<bool>,
         }
 
         impl From<Format> for MediaFormatEstablished {
@@ -64,9 +66,19 @@ pub mod response {
                 } else {
                     FormatBreed::Video
                 };
+                let mut format_attributes = Vec::new();
+                if is_hls {
+                    format_attributes.push("-hls");
+                }
+                if fmt.is_drc == Some(true) {
+                    format_attributes.push("-drc");
+                }
                 MediaFormatEstablished {
                     details: MediaFormatDetails {
-                        id: fmt.itag.to_string(),
+                        id: fmt.itag.to_string()
+                            + &format_attributes
+                                .into_iter()
+                                .fold(String::new(), |f, p| f + p),
                         video_details: if breed == FormatBreed::Video
                             || breed == FormatBreed::AudioVideo
                         {
@@ -233,24 +245,24 @@ pub mod response {
             ]
         });
 
-        impl From<PlayerCaptionsTracklistRenderer> for Option<Vec<api::Subtitle>> {
+        impl From<PlayerCaptionsTracklistRenderer> for Vec<api::SubtitlePointerURL> {
             fn from(r: PlayerCaptionsTracklistRenderer) -> Self {
                 if let Some(caption_tracks) = r.caption_tracks {
-                    Some(
-                        caption_tracks
-                            .into_iter()
-                            .flat_map(|t| {
-                                let base_url = Url::parse(&t.base_url).unwrap();
-                                let base_query = qstring::QString::new(
-                                    base_url.query_pairs().filter(|(k, _)| k != "fmt").collect(),
-                                );
-                                let mut result = vec![];
-                                for (e, se) in SUBTITLE_EXTS.iter() {
-                                    let mut url = base_url.clone();
-                                    let mut query = base_query.clone();
-                                    query.add_pair(("fmt", *e));
-                                    url.set_query(Some(&query.to_string()));
-                                    result.push(api::Subtitle {
+                    caption_tracks
+                        .into_iter()
+                        .flat_map(|t| {
+                            let base_url = Url::parse(&t.base_url).unwrap();
+                            let base_query = qstring::QString::new(
+                                base_url.query_pairs().filter(|(k, _)| k != "fmt").collect(),
+                            );
+                            let mut result = vec![];
+                            for (e, se) in SUBTITLE_EXTS.iter() {
+                                let mut url = base_url.clone();
+                                let mut query = base_query.clone();
+                                query.add_pair(("fmt", *e));
+                                url.set_query(Some(&query.to_string()));
+                                result.push(api::SubtitlePointerURL {
+                                    details: api::SubtitleDetails {
                                         lang: t.language_code.clone(),
                                         is_original_lang: None,
                                         is_machine_generated: Some(
@@ -258,15 +270,15 @@ pub mod response {
                                         ),
                                         is_machine_translated: Some(false),
                                         ext: se.clone(),
-                                        url,
-                                    });
-                                }
-                                result
-                            })
-                            .collect(),
-                    )
+                                    },
+                                    url,
+                                });
+                            }
+                            result
+                        })
+                        .collect()
                 } else {
-                    None
+                    Vec::new()
                 }
             }
         }
