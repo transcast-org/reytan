@@ -1,9 +1,9 @@
 use nipper::Document;
 use reytan_extractor_api::anyhow::Result;
-use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
-    async_trait, headers, AnyExtraction, Extraction, ExtractionContext, ListBreed,
-    ListContinuation, ListExtraction, ListExtractor, MediaMetadata, NewExtractor, URLMatcher,
+    async_trait, header, uri, AnyExtraction, Extraction, ExtractionContext, ListBreed,
+    ListContinuation, ListExtraction, ListExtractor, MediaMetadata, NewExtractor, Request,
+    URLMatcher, Url,
 };
 
 use super::common::{_is_bandcamp, _path_is};
@@ -41,10 +41,12 @@ impl ListExtractor for BandcampAlbumLE {
         let webpage = ctx
             .get_body(
                 "webpage",
-                ctx.http.get(url.clone()).header(
-                    headers::USER_AGENT,
-                    "Mozilla/5.0 (Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
-                ),
+                Request::get(uri(url.clone()))
+                    .header(
+                        header::USER_AGENT,
+                        "Mozilla/5.0 (Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
+                    )
+                    .body(())?,
             )
             .await?;
         let document = Document::from(&webpage);
@@ -113,7 +115,7 @@ mod tests {
         let bandcamp = BandcampAlbumLE {};
         let album = bandcamp
             .extract_list_initial(
-                &ExtractionContext::new(),
+                &ExtractionContext::new().unwrap(),
                 &Url::parse("https://penelopescott.bandcamp.com/album/public-void").unwrap(),
             )
             .await

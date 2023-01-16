@@ -103,7 +103,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_extraction_basic() {
-        let ctx = ExtractionContext::new();
+        let ctx = ExtractionContext::new().unwrap();
         let extractor = SoundcloudSetLE {};
         let url = &Url::parse("https://soundcloud.com/goophouse/sets/goop-house-volume-7").unwrap();
         let mtch = extractor.match_extractor(url);

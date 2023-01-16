@@ -21,7 +21,7 @@ use once_cell::sync::Lazy;
 use reytan_extractor_api::anyhow::{bail, Result};
 use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
-    async_trait, chrono, ExtractLevel, Extractable, Extraction, ExtractionContext, LiveStatus,
+    async_trait, chrono, uri, ExtractLevel, Extractable, Extraction, ExtractionContext, LiveStatus,
     MediaFormatEstablished, MediaMetadata, NewExtractor, RecordingExtractor, URLMatcher, Utc,
 };
 
@@ -254,6 +254,8 @@ impl YoutubeRE {
         ctx: &ExtractionContext,
         (script_url, script_hash): (Url, &str),
     ) -> Result<SigDefinition> {
+        use reytan_extractor_api::Request;
+
         if let Ok(Some(functions)) = ctx
             .cache
             .get::<SigDefinition>(WEB_JS_FUNCTIONS_POOL, &script_hash)
@@ -265,7 +267,7 @@ impl YoutubeRE {
         let player_js = ctx
             .get_body(
                 &format!("js player {}", script_hash),
-                ctx.http.get(script_url),
+                Request::get(uri(script_url)).body(())?,
             )
             .await?;
         let sig_fn_name = WEB_JS_SIG_FN_NAME_RE
@@ -449,19 +451,22 @@ impl YoutubeRE {
         id: &str,
         client: &request::Client<'_>,
     ) -> Result<((Url, String), Option<u32>, Option<response::Player>)> {
-        use reytan_extractor_api::headers;
+        use reytan_extractor_api::{header, Request};
 
         let is_embed = client.name.ends_with("_embedded");
-        let mut request = ctx.http.get(format!(
+        let mut request = Request::get(format!(
             "https://{}/{}{id}",
             client.host,
             if is_embed { "embed/" } else { "watch?v=" }
         ));
         if let Some(user_agent) = client.user_agent {
-            request = request.header(headers::USER_AGENT, user_agent);
+            request = request.header(header::USER_AGENT, user_agent);
         }
         let webpage = ctx
-            .get_body(if is_embed { "embed page" } else { "watch page" }, request)
+            .get_body(
+                if is_embed { "embed page" } else { "watch page" },
+                request.body(())?,
+            )
             .await?;
 
         let script_match = WEB_JS_URL_RE.captures(&webpage).unwrap();
@@ -848,7 +853,7 @@ mod tests {
         let youtube = YoutubeRE {};
         let response = youtube
             .yti_player(
-                &ExtractionContext::new(),
+                &ExtractionContext::new().unwrap(),
                 "KushW6zvazM",
                 &ANDROID_MUSIC,
                 None,
@@ -869,7 +874,7 @@ mod tests {
         let youtube = YoutubeRE {};
         let response = youtube
             .extract_recording(
-                &ExtractionContext::new(),
+                &ExtractionContext::new().unwrap(),
                 &Url::parse("https://www.youtube.com/video/Tq92D6wQ1mg").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Basic,
@@ -900,7 +905,7 @@ mod tests {
         let youtube = YoutubeRE {};
         let response = youtube
             .extract_recording(
-                &ExtractionContext::new(),
+                &ExtractionContext::new().unwrap(),
                 &Url::parse("https://youtu.be/KushW6zvazM").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Extended,
@@ -935,7 +940,7 @@ mod tests {
         let youtube = YoutubeRE {};
         let response = youtube
             .extract_recording(
-                &ExtractionContext::new(),
+                &ExtractionContext::new().unwrap(),
                 &Url::parse("https://www.youtube.com/watch?v=jfKfPfyJRdk").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Extended,
@@ -955,7 +960,7 @@ mod tests {
         let youtube = YoutubeRE {};
         let response = youtube
             .extract_recording(
-                &ExtractionContext::new(),
+                &ExtractionContext::new().unwrap(),
                 &Url::parse("https://www.youtube.com/watch?v=UnIhRpIT7nc").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Basic,

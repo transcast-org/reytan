@@ -1,5 +1,6 @@
-use anyhow::{anyhow, Result};
-use http_types::headers;
+use anyhow::Result;
+use isahc::http::header;
+use isahc::{AsyncBody, AsyncReadResponseExt};
 use serde::Deserialize;
 use sys_locale::get_locale;
 
@@ -11,13 +12,13 @@ use crate::cache::stub::StubCache;
 
 #[derive(Clone)]
 pub struct ExtractionContext {
-    pub http: surf::Client,
+    pub http: isahc::HttpClient,
     pub locales: Vec<String>,
     pub cache: CacheAPI,
 }
 
 impl ExtractionContext {
-    pub fn new() -> ExtractionContext {
+    pub fn new() -> Result<ExtractionContext> {
         let locale = get_locale()
             .filter(|l| l != "c" && l != "C")
             .unwrap_or_else(|| "en-US".to_string());
@@ -28,67 +29,69 @@ impl ExtractionContext {
             vec![locale]
         };
 
-        ExtractionContext {
-            http: build_http(&locales),
+        Ok(ExtractionContext {
+            http: build_http(&locales)?,
             locales,
             // TODO: get actual cache implementations for other platforms as possible
             #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
             cache: CacheAPI::new(CacheImplementation::Stub(StubCache::new())),
             #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
             cache: CacheAPI::new(CacheImplementation::Local(LocalCache::new())),
-        }
+        })
     }
 
-    pub fn new_with_locale(locales: Vec<String>) -> ExtractionContext {
-        ExtractionContext {
-            http: build_http(&locales),
+    pub fn new_with_locale(locales: Vec<String>) -> Result<ExtractionContext> {
+        Ok(ExtractionContext {
+            http: build_http(&locales)?,
             locales,
             cache: CacheAPI::new(CacheImplementation::Local(LocalCache::new())),
-        }
+        })
     }
 
-    pub async fn send_request(
+    pub async fn send_request<'a, Q>(
         &self,
         _resource_name: &str,
-        request: impl Into<surf::Request>,
-    ) -> Result<surf::Response> {
-        self.http.send(request).await.map_err(|e| anyhow!(e))
-    }
-
-    pub async fn get_body(
-        &self,
-        resource_name: &str,
-        request: impl Into<surf::Request>,
-    ) -> Result<String> {
-        self.send_request(resource_name, request)
-            .await?
-            .body_string()
-            .await
-            .map_err(|e| anyhow!(e))
-    }
-
-    pub async fn get_json<T>(
-        &self,
-        resource_name: &str,
-        request: impl Into<surf::Request>,
-    ) -> Result<T>
+        request: isahc::Request<Q>,
+    ) -> Result<isahc::Response<AsyncBody>>
     where
-        T: for<'a> Deserialize<'a>,
+        Q: Into<AsyncBody>,
     {
-        self.send_request(resource_name, request)
+        Ok(self.http.send_async(request).await?)
+    }
+
+    pub async fn get_body<'a, Q>(
+        &self,
+        resource_name: &str,
+        request: isahc::Request<Q>,
+    ) -> Result<String>
+    where
+        Q: Into<AsyncBody>,
+    {
+        Ok(self
+            .send_request(resource_name, request)
             .await?
-            .body_json()
-            .await
-            .map_err(|e| anyhow!(e))
+            .text()
+            .await?)
+    }
+
+    pub async fn get_json<Q, A>(&self, resource_name: &str, request: isahc::Request<Q>) -> Result<A>
+    where
+        Q: Into<AsyncBody>,
+        A: for<'a> Deserialize<'a> + Unpin,
+    {
+        Ok(self
+            .send_request(resource_name, request)
+            .await?
+            .json()
+            .await?)
     }
 }
 
-pub fn build_http(locales: &Vec<String>) -> surf::Client {
-    surf::Config::new()
-        .add_header(headers::USER_AGENT, "okhttp/4.9.3")
-        .unwrap()
-        .add_header(
-            headers::ACCEPT_LANGUAGE,
+pub fn build_http(locales: &Vec<String>) -> Result<isahc::HttpClient> {
+    Ok(isahc::HttpClientBuilder::new()
+        .default_header(header::USER_AGENT, "okhttp/4.9.3")
+        .default_header(
+            header::ACCEPT_LANGUAGE,
             locales
                 .into_iter()
                 .enumerate()
@@ -102,7 +105,5 @@ pub fn build_http(locales: &Vec<String>) -> surf::Client {
                 .collect::<Vec<_>>()
                 .join(","),
         )
-        .unwrap()
-        .try_into()
-        .unwrap()
+        .build()?)
 }

@@ -32,7 +32,7 @@ impl<'a> CoreClient<'a> {
     pub fn new() -> Self {
         CoreClient {
             extractors: DEFAULT_EXTRACTOR_LIST.to_vec(),
-            context: ExtractionContext::new(),
+            context: ExtractionContext::new().unwrap(),
             #[cfg(feature = "jrsonnet")]
             format_picker: Box::new(JrsonnetFormatPicker::new()),
         }

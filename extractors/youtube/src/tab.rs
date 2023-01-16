@@ -241,7 +241,7 @@ mod tests {
         let url =
             Url::parse("https://www.youtube.com/playlist?list=PLpTn8onHfnD2QpCHU-llSG9hbQUwKIVFr")
                 .unwrap();
-        let ctx = ExtractionContext::new();
+        let ctx = ExtractionContext::new().unwrap();
         let ytt = YoutubeTabLE {};
         let initial = ytt.extract_list_initial(&ctx, &url).await.unwrap();
         assert_eq!(initial.id, "VLPLpTn8onHfnD2QpCHU-llSG9hbQUwKIVFr");
@@ -287,7 +287,7 @@ mod tests {
 
     #[tokio::test]
     async fn do_extract_youtube_channel() {
-        let http = ExtractionContext::new();
+        let http = ExtractionContext::new().unwrap();
         let ytt = YoutubeTabLE {};
         let url = &Url::parse("https://www.youtube.com/c/Astrophysicsynth/videos").unwrap();
         let mtch = ytt.match_extractor(url);

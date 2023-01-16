@@ -10,14 +10,21 @@ pub mod cache;
 pub use anyhow;
 pub use async_trait::async_trait;
 pub use chrono::{self, DateTime, Utc};
-pub use http_types::headers;
-pub use surf;
+pub use fuckinguri::{uri, AnyFuckingURL};
+pub use isahc;
+pub use isahc::http::{header, Uri};
+pub use isahc::{Request, Response};
 pub use url;
+pub use url::Url;
+
+pub mod prelude {
+    pub use fuckinguri::uri;
+    pub use isahc::prelude::*;
+}
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use url::Url;
 
 pub trait NewExtractor {
     fn new() -> Self;

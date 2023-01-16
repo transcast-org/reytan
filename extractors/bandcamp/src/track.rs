@@ -2,11 +2,10 @@ use std::time::Duration;
 
 use nipper::Document;
 use reytan_extractor_api::anyhow::Result;
-use reytan_extractor_api::url::Url;
 use reytan_extractor_api::{
-    async_trait, chrono, headers, AudioDetails, Extractable, Extraction, ExtractionContext,
+    async_trait, chrono, header, uri, AudioDetails, Extractable, Extraction, ExtractionContext,
     FormatBreed, MediaFormatDetails, MediaFormatEstablished, MediaFormatURL, MediaMetadata,
-    NewExtractor, RecordingExtractor, URLMatcher, Utc,
+    NewExtractor, RecordingExtractor, Request, URLMatcher, Url, Utc,
 };
 
 use super::common::{_is_bandcamp, _path_is};
@@ -45,10 +44,12 @@ impl RecordingExtractor for BandcampRE {
         let webpage = ctx
             .get_body(
                 "webpage",
-                ctx.http.get(url.clone()).header(
-                    headers::USER_AGENT,
-                    "Mozilla/5.0 (Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
-                ),
+                Request::get(uri(url.clone()))
+                    .header(
+                        header::USER_AGENT,
+                        "Mozilla/5.0 (Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
+                    )
+                    .body(())?,
             )
             .await?;
         let document = Document::from(&webpage);
@@ -139,7 +140,7 @@ mod tests {
         let bandcamp = BandcampRE {};
         let recording = bandcamp
             .extract_recording(
-                &ExtractionContext::new(),
+                &ExtractionContext::new().unwrap(),
                 &Url::parse("https://miraonthewall.bandcamp.com/track/make-that-skirt-go-spinny")
                     .unwrap(),
                 &Extractable {
@@ -159,7 +160,7 @@ mod tests {
         let bandcamp = BandcampRE {};
         let recording = bandcamp
             .extract_recording(
-                &ExtractionContext::new(),
+                &ExtractionContext::new().unwrap(),
                 &Url::parse("https://penelopescott.bandcamp.com/track/r-t-2").unwrap(),
                 &Extractable {
                     metadata: ExtractLevel::Basic,

@@ -115,7 +115,7 @@ mod tests {
     #[tokio::test]
     async fn test_extraction_basic() {
         let soundcloud = SoundcloudRE {};
-        let ctx = ExtractionContext::new();
+        let ctx = ExtractionContext::new().unwrap();
         let recording = soundcloud.extract_recording(&ctx, &Url::parse("https://soundcloud.com/goophouse/nyancrimew-this-video-game-has?in=goophouse/sets/goop-house-volume-7").unwrap(), &Extractable {
             metadata: ExtractLevel::Extended,
             playback: ExtractLevel::Extended,
@@ -131,7 +131,7 @@ mod tests {
     #[tokio::test]
     async fn test_extraction_secret_web() {
         let soundcloud = SoundcloudRE {};
-        let ctx = ExtractionContext::new();
+        let ctx = ExtractionContext::new().unwrap();
         let recording = soundcloud
             .extract_recording(
                 &ctx,
@@ -152,7 +152,7 @@ mod tests {
     #[tokio::test]
     async fn test_extraction_secret_api() {
         let soundcloud = SoundcloudRE {};
-        let ctx = ExtractionContext::new();
+        let ctx = ExtractionContext::new().unwrap();
         let recording = soundcloud
             .extract_recording(
                 &ctx,

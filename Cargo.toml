@@ -6,6 +6,7 @@ members = [
     "extractors/bandcamp",
     "extractors/soundcloud",
     "extractors/youtube",
+    "fuckinguri",
     "format_picker_api",
     "format_pickers/jrsonnet",
 ]
