@@ -11,15 +11,16 @@ pub use anyhow;
 pub use async_trait::async_trait;
 pub use chrono::{self, DateTime, Utc};
 pub use fuckinguri::{uri, AnyFuckingURL};
-pub use isahc;
-pub use isahc::http::{header, Uri};
-pub use isahc::{Request, Response};
+pub use ratmom;
+pub use ratmom as isahc;
+pub use ratmom::http::{header, Uri};
+pub use ratmom::{Request, Response};
 pub use url;
 pub use url::Url;
 
 pub mod prelude {
     pub use fuckinguri::uri;
-    pub use isahc::prelude::*;
+    pub use ratmom::prelude::*;
 }
 
 use anyhow::Result;

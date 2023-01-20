@@ -1,6 +1,6 @@
 use anyhow::Result;
-use isahc::http::header;
-use isahc::{AsyncBody, AsyncReadResponseExt};
+use ratmom::http::header;
+use ratmom::{AsyncBody, AsyncReadResponseExt, HttpClient, HttpClientBuilder, Request, Response};
 use serde::Deserialize;
 use sys_locale::get_locale;
 
@@ -12,7 +12,7 @@ use crate::cache::stub::StubCache;
 
 #[derive(Clone)]
 pub struct ExtractionContext {
-    pub http: isahc::HttpClient,
+    pub http: HttpClient,
     pub locales: Vec<String>,
     pub cache: CacheAPI,
 }
@@ -51,19 +51,15 @@ impl ExtractionContext {
     pub async fn send_request<'a, Q>(
         &self,
         _resource_name: &str,
-        request: isahc::Request<Q>,
-    ) -> Result<isahc::Response<AsyncBody>>
+        request: Request<Q>,
+    ) -> Result<Response<AsyncBody>>
     where
         Q: Into<AsyncBody>,
     {
         Ok(self.http.send_async(request).await?)
     }
 
-    pub async fn get_body<'a, Q>(
-        &self,
-        resource_name: &str,
-        request: isahc::Request<Q>,
-    ) -> Result<String>
+    pub async fn get_body<'a, Q>(&self, resource_name: &str, request: Request<Q>) -> Result<String>
     where
         Q: Into<AsyncBody>,
     {
@@ -74,7 +70,7 @@ impl ExtractionContext {
             .await?)
     }
 
-    pub async fn get_json<Q, A>(&self, resource_name: &str, request: isahc::Request<Q>) -> Result<A>
+    pub async fn get_json<Q, A>(&self, resource_name: &str, request: Request<Q>) -> Result<A>
     where
         Q: Into<AsyncBody>,
         A: for<'a> Deserialize<'a> + Unpin,
@@ -87,8 +83,8 @@ impl ExtractionContext {
     }
 }
 
-pub fn build_http(locales: &Vec<String>) -> Result<isahc::HttpClient> {
-    Ok(isahc::HttpClientBuilder::new()
+pub fn build_http(locales: &Vec<String>) -> Result<HttpClient> {
+    Ok(HttpClientBuilder::new()
         .default_header(header::USER_AGENT, "okhttp/4.9.3")
         .default_header(
             header::ACCEPT_LANGUAGE,
