@@ -1,0 +1,10 @@
+[package]
+name = "reytan_download"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+reytan_download_http = { path = "../download_http" }
+reytan_download_types = { path = "../download_types" }

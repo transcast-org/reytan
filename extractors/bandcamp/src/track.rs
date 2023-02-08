@@ -4,8 +4,8 @@ use nipper::Document;
 use reytan_extractor_api::anyhow::Result;
 use reytan_extractor_api::{
     async_trait, chrono, header, uri, AudioDetails, Extractable, Extraction, ExtractionContext,
-    FormatBreed, MediaFormatDetails, MediaFormatEstablished, MediaFormatURL, MediaMetadata,
-    NewExtractor, RecordingExtractor, Request, URLMatcher, Url, Utc,
+    FormatBreed, HTTPDownloadOptions, MediaFormatDetails, MediaFormatEstablished, MediaFormatURL,
+    MediaMetadata, NewExtractor, RecordingExtractor, Request, URLMatcher, Url, Utc,
 };
 
 use super::common::{_is_bandcamp, _path_is};
@@ -100,6 +100,7 @@ impl RecordingExtractor for BandcampRE {
                 .map(|quality| MediaFormatEstablished {
                     url: MediaFormatURL::HTTP(
                         Url::parse(&trackinfo.file.get(quality).unwrap().to_string()).unwrap(),
+                        HTTPDownloadOptions::default(),
                     ),
                     details: MediaFormatDetails {
                         id: quality.to_string(),

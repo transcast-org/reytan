@@ -2,6 +2,9 @@
 members = [
     "cli",
     "core",
+    "download",
+    "download_http",
+    "download_types",
     "extractor_api",
     "extractors/bandcamp",
     "extractors/soundcloud",

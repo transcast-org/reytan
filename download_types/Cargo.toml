@@ -1,0 +1,11 @@
+[package]
+name = "reytan_download_types"
+version = "0.1.0"
+edition = "2021"
+description = "reytan download types"
+license = "Apache-2.0"
+authors = ["Lauren Liberda <lauren@selfisekai.rocks>"]
+
+[dependencies]
+reytan_extractor_api = { path = "../extractor_api" }
+reytan_format_picker_api = { path = "../format_picker_api" }

@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use reytan_extractor_api::{
-    chrono, AudioDetails, Extraction, FormatBreed, LiveStatus, MediaFormatDetails,
-    MediaFormatEstablished, MediaFormatURL, MediaMetadata, Utc,
+    chrono, AudioDetails, Extraction, FormatBreed, HLSDownloadOptions, HTTPDownloadOptions,
+    LiveStatus, MediaFormatDetails, MediaFormatEstablished, MediaFormatURL, MediaMetadata, Utc,
 };
 use serde::Deserialize;
 
@@ -45,8 +45,12 @@ impl From<Transcoding> for MediaFormatEstablished {
                 }),
             },
             url: match t.format.protocol {
-                MediaProtocol::Progressive => MediaFormatURL::HTTP(t.url.parse().unwrap()),
-                MediaProtocol::Hls => MediaFormatURL::HLS(t.url.parse().unwrap()),
+                MediaProtocol::Progressive => {
+                    MediaFormatURL::HTTP(t.url.parse().unwrap(), HTTPDownloadOptions::default())
+                }
+                MediaProtocol::Hls => {
+                    MediaFormatURL::HLS(t.url.parse().unwrap(), HLSDownloadOptions::default())
+                }
             },
         }
     }
