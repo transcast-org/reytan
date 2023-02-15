@@ -1,3 +1,5 @@
+use std::env::current_dir;
+
 use anyhow::Result;
 use clap::Parser;
 use reytan::{
@@ -88,13 +90,21 @@ impl<'a> Reyt<'a> {
                 }
             }
         }
+        println!("performing downloads");
+        self.client
+            .download_from_list(
+                &download_selection,
+                current_dir()?.join(format!("{}.{}", e.metadata.id, "mp4")),
+            )
+            .await?;
         Ok(())
     }
 }
 fn printable_format_url(mfu: &MediaFormatURL) -> String {
     match mfu {
-        MediaFormatURL::HTTP(u) => format!("HTTP {}", u.as_str()),
-        MediaFormatURL::HLS(u) => format!("HLS {}", u.as_str()),
+        MediaFormatURL::HTTP(u, _) => format!("HTTP {}", u.as_str()),
+        MediaFormatURL::HLS(u, _) => format!("HLS {}", u.as_str()),
+        MediaFormatURL::DASH(u, _) => format!("DASH {}", u.as_str()),
     }
 }
 

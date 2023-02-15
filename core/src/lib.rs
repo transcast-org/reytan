@@ -1,4 +1,8 @@
+use std::env::current_dir;
+use std::path::Path;
+
 use once_cell::sync::Lazy;
+use reytan_download::Downloader;
 use reytan_extractor_api::anyhow::Result;
 use reytan_extractor_api::url::Url;
 pub use reytan_extractor_api::*;
@@ -26,6 +30,7 @@ pub struct CoreClient<'a> {
     extractors: Vec<&'a AnyExtractor>,
     context: ExtractionContext,
     format_picker: Box<dyn FormatPicker>,
+    downloader: Downloader,
 }
 
 impl<'a> CoreClient<'a> {
@@ -35,6 +40,7 @@ impl<'a> CoreClient<'a> {
             context: ExtractionContext::new().unwrap(),
             #[cfg(feature = "jrsonnet")]
             format_picker: Box::new(JrsonnetFormatPicker::new()),
+            downloader: Downloader::new(),
         }
     }
 
@@ -66,5 +72,42 @@ impl<'a> CoreClient<'a> {
                 .await?,
             extraction,
         )
+    }
+
+    pub async fn download(&self, url: &Url, wanted: &Extractable, selector: &str) -> Result<()> {
+        let extraction = self
+            .extract_url(url, wanted)
+            .await?
+            .expect("nothing got extracted");
+        match extraction {
+            AnyExtraction::Recording(recording) => {
+                self.download_recording(&recording, selector).await
+            }
+            _ => todo!(),
+        }
+    }
+
+    pub async fn download_from_list<P>(
+        &self,
+        download_list: &DownloadList<'a>,
+        output: P,
+    ) -> Result<()>
+    where
+        P: AsRef<Path>,
+    {
+        self.downloader
+            .download_from_list(&self.context, download_list, output)
+            .await
+    }
+
+    async fn download_recording(&self, extraction: &'a Extraction, selector: &str) -> Result<()> {
+        let download_list = self.pick_formats(selector, extraction).await?;
+        self.downloader
+            .download_from_list(
+                &self.context,
+                &download_list,
+                current_dir()?.join(&extraction.metadata.id),
+            )
+            .await
     }
 }

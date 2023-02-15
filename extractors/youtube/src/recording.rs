@@ -930,7 +930,9 @@ mod tests {
         let audio = f251.details.audio_details.expect("251 audio details");
         assert_eq!(audio.channels.unwrap(), 2);
         match f251.url {
-            MediaFormatURL::HTTP(u) => assert!(u.host_str().unwrap().ends_with(".googlevideo.com")),
+            MediaFormatURL::HTTP(u, _) => {
+                assert!(u.host_str().unwrap().ends_with(".googlevideo.com"))
+            }
             _ => panic!("251 should return HTTP URL"),
         }
     }

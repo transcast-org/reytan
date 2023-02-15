@@ -1,0 +1,11 @@
+[package]
+name = "reytan_download"
+version = "0.1.0"
+edition = "2021"
+description = "reytan format download and merging handler"
+license = "Apache-2.0"
+authors = ["Lauren Liberda <lauren@selfisekai.rocks>"]
+
+[dependencies]
+reytan_download_http = { path = "../download_http" }
+reytan_download_types = { path = "../download_types" }

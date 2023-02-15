@@ -2,6 +2,7 @@ use self::response::parts::Continuation;
 
 pub mod response {
     pub mod parts {
+        use api::{HLSDownloadOptions, HTTPDownloadOptions};
         use once_cell::sync::Lazy;
         use reytan_extractor_api::{
             self as api, url::Url, Extraction, FormatBreed, MediaFormatDetails,
@@ -103,9 +104,15 @@ pub mod response {
                         breed,
                     },
                     url: if is_hls {
-                        MediaFormatURL::HLS(fmt.url.unwrap().parse().unwrap())
+                        MediaFormatURL::HLS(
+                            fmt.url.unwrap().parse().unwrap(),
+                            HLSDownloadOptions::default(),
+                        )
                     } else {
-                        MediaFormatURL::HTTP(fmt.url.unwrap().parse().unwrap())
+                        MediaFormatURL::HTTP(
+                            fmt.url.unwrap().parse().unwrap(),
+                            HTTPDownloadOptions::default(),
+                        )
                     },
                 }
             }

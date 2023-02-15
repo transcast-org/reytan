@@ -127,8 +127,42 @@ pub struct MediaFormatDetails {
 
 #[derive(Serialize, PartialEq, Clone, Debug)]
 pub enum MediaFormatURL {
-    HTTP(Url),
-    HLS(Url),
+    HTTP(Url, HTTPDownloadOptions),
+    HLS(Url, HLSDownloadOptions),
+    DASH(Url, DASHDownloadOptions),
+}
+
+#[derive(Serialize, PartialEq, Clone, Debug, SmartDefault)]
+/// options common to any protocols made on top of HTTP
+pub struct HTTPConnectionOptions {
+    pub chrome_target: Option<HTTPImpersonationTarget>,
+    pub ff_target: Option<HTTPImpersonationTarget>,
+    /// used if not running any impersonate or target not specified
+    pub user_agent: Option<String>,
+}
+
+#[derive(Serialize, PartialEq, Clone, Debug)]
+/// connection settings to use for downloaders supporting curl-impersonate
+pub struct HTTPImpersonationTarget {
+    /// curl-impersonate target name
+    pub target: String,
+    /// user-agent header, if not curl-impersonate default for the target
+    pub user_agent: Option<String>,
+}
+
+#[derive(Serialize, PartialEq, Clone, Debug, SmartDefault)]
+pub struct HTTPDownloadOptions {
+    pub connection: HTTPConnectionOptions,
+}
+
+#[derive(Serialize, PartialEq, Clone, Debug, SmartDefault)]
+pub struct HLSDownloadOptions {
+    pub connection: HTTPConnectionOptions,
+}
+
+#[derive(Serialize, PartialEq, Clone, Debug, SmartDefault)]
+pub struct DASHDownloadOptions {
+    pub connection: HTTPConnectionOptions,
 }
 
 #[async_trait]

@@ -1049,25 +1049,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f61fba1741ea2b3d6a1e3178721804bb716a68a6aeba1149b5d52e3d464ea66"
 
 [[package]]
-name = "openssl-probe"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
-
-[[package]]
-name = "openssl-sys"
-version = "0.9.80"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23bbbf7854cd45b83958ebe919f0e8e516793727652e27fda10a8384cfc790b7"
-dependencies = [
- "autocfg",
- "cc",
- "libc",
- "pkg-config",
- "vcpkg",
-]
-
-[[package]]
 name = "os_str_bytes"
 version = "6.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1455,11 +1436,10 @@ dependencies = [
 [[package]]
 name = "ratcurl"
 version = "0.1.0"
-source = "git+https://codeberg.org/transcast/ratcurl.git?branch=main#c4f18f191bfeccf9e25efeeefde353112ab0c22c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b83eb90b2b1ec439212b89b6e79f283bdd94378c5e418e1b2799b85f207dca51"
 dependencies = [
  "libc",
- "openssl-probe",
- "openssl-sys",
  "ratcurl-sys",
  "schannel",
  "socket2",
@@ -1469,13 +1449,13 @@ dependencies = [
 [[package]]
 name = "ratcurl-sys"
 version = "0.1.0+curl-7.86.0"
-source = "git+https://codeberg.org/transcast/ratcurl.git?branch=main#c4f18f191bfeccf9e25efeeefde353112ab0c22c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79717113223ca668b5054a7589e8f4424930a20096c69abb91ccd548e9461f73"
 dependencies = [
  "cc",
  "libc",
  "libnghttp2-sys",
  "libz-sys",
- "openssl-sys",
  "pkg-config",
  "vcpkg",
  "winapi",
@@ -1484,7 +1464,8 @@ dependencies = [
 [[package]]
 name = "ratmom"
 version = "0.1.0"
-source = "git+https://codeberg.org/transcast/ratmom.git?branch=main#75d569b8fe4b6260a2d01c61e8da8077a135f6a6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3faf5f6e13d99c51659d72f7ac6f617009b537bcd9b10703cb6496126bcc26e6"
 dependencies = [
  "async-channel",
  "castaway",
@@ -1560,12 +1541,36 @@ name = "reytan"
 version = "0.1.0"
 dependencies = [
  "once_cell",
+ "reytan_download",
  "reytan_extractor_api",
  "reytan_extractor_bandcamp",
  "reytan_extractor_soundcloud",
  "reytan_extractor_youtube",
  "reytan_format_picker_api",
  "reytan_format_picker_jrsonnet",
+]
+
+[[package]]
+name = "reytan_download"
+version = "0.1.0"
+dependencies = [
+ "reytan_download_http",
+ "reytan_download_types",
+]
+
+[[package]]
+name = "reytan_download_http"
+version = "0.1.0"
+dependencies = [
+ "reytan_download_types",
+]
+
+[[package]]
+name = "reytan_download_types"
+version = "0.1.0"
+dependencies = [
+ "reytan_extractor_api",
+ "reytan_format_picker_api",
 ]
 
 [[package]]
@@ -1576,7 +1581,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "fuckinguri",
- "ratcurl",
  "ratmom",
  "serde",
  "serde_json",

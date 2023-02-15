@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["all_extractors", "allow_js", "jrsonnet"]
+default = ["all_extractors", "allow_js", "jrsonnet", "download"]
 allow_js = ["reytan_extractor_youtube?/allow_js"]
+download = ["reytan_download"]
 impersonate_chrome = [
   "reytan_extractor_api/impersonate_chrome",
   "reytan_extractor_bandcamp?/impersonate_chrome",
@@ -28,6 +29,7 @@ youtube = ["dep:reytan_extractor_youtube"]
 
 [dependencies]
 once_cell = "1.15.0"
+reytan_download = { path = "../download", optional = true }
 reytan_extractor_api = { path = "../extractor_api" }
 reytan_extractor_bandcamp = { path = "../extractors/bandcamp", optional = true }
 reytan_extractor_soundcloud = { path = "../extractors/soundcloud", optional = true }

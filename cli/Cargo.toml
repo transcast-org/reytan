@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["all_extractors", "allow_js", "jrsonnet"]
+default = ["all_extractors", "allow_js", "download", "jrsonnet"]
 allow_js = ["reytan/allow_js"]
+download = ["reytan/download"]
 jrsonnet = ["reytan/jrsonnet"]
 impersonate_chrome = ["reytan/impersonate_chrome"]
 impersonate_ff = ["reytan/impersonate_ff"]

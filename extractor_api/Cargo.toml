@@ -7,8 +7,8 @@ license = "Apache-2.0"
 authors = ["Lauren Liberda <lauren@selfisekai.rocks>"]
 
 [features]
-impersonate_chrome = ["ratcurl/impersonate-chrome"]
-impersonate_ff = ["ratcurl/impersonate-ff"]
+impersonate_chrome = ["ratmom/impersonate-chrome"]
+impersonate_ff = ["ratmom/impersonate-ff"]
 
 [dependencies]
 anyhow = "1.0.53"
@@ -18,8 +18,7 @@ chrono = { version = "0.4.22", default-features = false, features = [
     "serde",
 ] }
 fuckinguri = { path = "../fuckinguri" }
-ratcurl = { git = "https://codeberg.org/transcast/ratcurl.git", branch = "main" }
-ratmom = { git = "https://codeberg.org/transcast/ratmom.git", branch = "main", default-features = false, features = [
+ratmom = { version = "0.1.0", default-features = false, features = [
     "http2",
     "json",
     "text-decoding",
